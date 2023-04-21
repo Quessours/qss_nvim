@@ -19,7 +19,7 @@ function dump_table(o)
    end
 end
 
-print(dump_table(mappings))
+-- print(dump_table(mappings))
 
 
 
