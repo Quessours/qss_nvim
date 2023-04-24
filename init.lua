@@ -19,7 +19,6 @@ function dump_table(o)
    end
 end
 
--- print(dump_table(mappings))
 
 
 
@@ -49,6 +48,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 
-require("lazy").setup("plugins") 
+require("lazy").setup("plugins")
 
 vim.cmd("set relativenumber")
