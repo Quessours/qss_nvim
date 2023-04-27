@@ -1,4 +1,3 @@
 return {
-  "folke/which-key.nvim",
-  "nvim-treesitter/nvim-treesitter"
+	"nvim-treesitter/nvim-treesitter"
 }

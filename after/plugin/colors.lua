@@ -16,4 +16,4 @@ function Colorize(color_theme)
 end
 
 -- TODO : test afterglow, focuspoint, blue
-Colorize("blue")
+Colorize("focuspoint")

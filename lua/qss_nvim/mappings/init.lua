@@ -6,6 +6,7 @@ local mappings = {}
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.nvim-tree.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.telescope.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.bufferline.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.nvim-dap.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.mappings.core"))
 
 
