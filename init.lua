@@ -48,4 +48,8 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup("plugins")
 
 
-vim.cmd("set relativenumber")
+--vim.cmd("set relativenumber")
+local options = require("qss_nvim.config.options")
+for k, v in pairs(options) do
+	vim.opt[k] = v
+end
