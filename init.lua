@@ -3,7 +3,7 @@ vim.g.loaded_netrwPlugin = 1
 
 
 mappings = require("qss_nvim.mappings")
---[[
+
 function dump_table(o)
     if type(o) == 'table' then
         local s = '{ '
@@ -17,6 +17,7 @@ function dump_table(o)
     end
 end
 
+--[[
 for mode, mode_values in pairs(mappings) do
     local default_opts = merge_tb("force", { mode = mode }, mapping_opt or {})
     for keybind, mapping_info in pairs(mode_values) do

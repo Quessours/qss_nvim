@@ -24,6 +24,4 @@ local mappings = {
     }
 }
 
-require("qss_nvim.utils.init")
-
-apply_mappings(mappings)
+require("qss_nvim.utils").apply_mappings(mappings)

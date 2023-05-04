@@ -1,6 +1,8 @@
 local merge_tb = vim.tbl_deep_extend
 
-function apply_mappings(mappings)
+M = {}
+
+M.apply_mappings = function(mappings)
     for mode, mode_values in pairs(mappings) do
         local default_opts = merge_tb("force", { mode = mode }, mapping_opt or {})
         for keybind, mapping_info in pairs(mode_values) do
@@ -14,7 +16,7 @@ function apply_mappings(mappings)
     end
 end
 
-function dump_table(o)
+M.dump_table = function(o)
     if type(o) == 'table' then
         local s = '{ '
         for k, v in pairs(o) do
@@ -26,3 +28,16 @@ function dump_table(o)
         return tostring(o)
     end
 end
+
+M.scan_dir = function()
+    local i, t, popen = 0, {}, io.popen
+    local pfile = popen('find -maxdepth 1 -printf "%f\n"')
+    for filename in pfile:lines() do
+        i = i + 1
+        t[i] = filename
+    end
+    pfile:close()
+    return t
+end
+
+return M
