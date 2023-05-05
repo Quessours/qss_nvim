@@ -13,17 +13,18 @@ local M = {
         "jbyuki/one-small-step-for-vimkind",
         "mfussenegger/nvim-dap-python",
     },
-    cond = function()
+    --[[
+    enabled = function()
         local dir_content = require("qss_nvim.utils").scan_dir()
 
         for _, f in pairs(dir_content) do
             if f == "Cargo.toml" then
-                print("Not loading DAP")
                 return false
             end
         end
         return true
     end,
+    --]]
     config = function()
         require('qss_nvim.nvim-dap').setup()
     end
