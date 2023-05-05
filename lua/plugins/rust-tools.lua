@@ -1,4 +1,5 @@
 local opts = require("qss_nvim.rust-tools.config")
+local apply_mappings = require("qss_nvim.utils").apply_mappings
 
 local M = {
     "simrat39/rust-tools.nvim",
@@ -16,7 +17,11 @@ local M = {
         end
         return false
     end,
-    init = function() require("qss_nvim.rust-tools.mappings") end,
+    init = function()
+        local mappings = require("qss_nvim.rust-tools.mappings")
+        assert(mappings ~= nil)
+        apply_mappings(mappings)
+    end,
     config = true,
     opts = opts
 }
