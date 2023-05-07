@@ -5,7 +5,8 @@ local M = {
     "simrat39/rust-tools.nvim",
     dependencies = {
         "nvim-lua/plenary.nvim",
-        "mfussenegger/nvim-dap"
+        "mfussenegger/nvim-dap",
+        'VonHeikemen/lsp-zero.nvim',
     },
     cond = function()
         local dir_content = require("qss_nvim.utils").scan_dir()
@@ -17,13 +18,12 @@ local M = {
         end
         return false
     end,
-    init = function()
+    config = function()
+        require("rust-tools").setup(opts)
         local mappings = require("qss_nvim.rust-tools.mappings")
         assert(mappings ~= nil)
         apply_mappings(mappings)
     end,
-    config = true,
-    opts = opts
 }
 
 return M

@@ -9,7 +9,7 @@ dap.configurations.rust = {
         type = "codelldb",
         request = "launch",
         program = function()
-            --local pfile = io.popen('find target/debug -name (basename (pwd))')
+            vim.fn.jobstart('cargo build')
             local output = execute('find target/debug -name $(basename $(pwd))')
             print(output)
             --find target/debug -name (basename (pwd))
@@ -18,16 +18,19 @@ dap.configurations.rust = {
         end,
         cwd = "${workspaceFolder}",
         stopOnEntry = false,
+        showDisassembly = "never"
     },
     {
         name = "Launch an executable",
         type = "codelldb",
         request = "launch",
         program = function()
+            vim.fn.jobstart('cargo build')
             return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
         end,
         cwd = "${workspaceFolder}",
         stopOnEntry = false,
+        showDisassembly = "never"
     },
 }
 
