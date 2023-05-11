@@ -1,8 +1,7 @@
 dap = require('dap')
 
-local execute = require('qss_nvim.utils.init').execute_and_capture_output
-
 local mason_path = vim.fn.glob(vim.fn.stdpath("data") .. "lvim/mason/")
+
 dap.configurations.rust = {
     {
         name = "Launch default executable",
@@ -10,6 +9,7 @@ dap.configurations.rust = {
         request = "launch",
         program = function()
             vim.fn.jobstart('cargo build')
+            local execute = require('qss_nvim.utils').execute_and_capture_output
             local output = execute('find target/debug -name $(basename $(pwd))')
             print(output)
             --find target/debug -name (basename (pwd))

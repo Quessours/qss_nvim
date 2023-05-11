@@ -15,6 +15,7 @@ local M = {
     },
     config = function()
         require('qss_nvim.nvim-dap').setup()
+        require('qss_nvim.nvim-dap.utils')
     end
 }
 

@@ -1,5 +1,6 @@
 local merge_tb = vim.tbl_deep_extend
 
+
 M = {}
 
 M.apply_mappings = function(mappings)
@@ -16,7 +17,7 @@ M.apply_mappings = function(mappings)
     end
 end
 
-M.dump_table = function(o)
+dump_table = function(o)
     if type(o) == 'table' then
         local s = '{ '
         for k, v in pairs(o) do
@@ -28,6 +29,8 @@ M.dump_table = function(o)
         return tostring(o)
     end
 end
+
+M.dump_table = dump_table
 
 M.scan_dir = function()
     local i, t, popen = 0, {}, io.popen
