@@ -14,9 +14,10 @@ dap.configurations.rust = {
             return output
         end,
         cwd = "${workspaceFolder}",
+        env = { RUST_BACKTRACE = "1" },
         stopOnEntry = false,
         showDisassembly = "never",
-        --        terminal = 'integrated',
+        console = 'integratedTerminal',
         sourceLanguages = { 'rust' }
     },
     {
@@ -28,9 +29,10 @@ dap.configurations.rust = {
             return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
         end,
         cwd = "${workspaceFolder}",
+        env = { RUST_BACKTRACE = "1" },
         stopOnEntry = false,
         showDisassembly = "never",
-        --      terminal = 'integrated',
+        console = 'integratedTerminal',
         sourceLanguages = { "rust" }
     },
 }
