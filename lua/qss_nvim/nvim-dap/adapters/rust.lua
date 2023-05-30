@@ -1,6 +1,6 @@
 dap = require('dap')
 
-local mason_path = vim.fn.glob(vim.fn.stdpath("data") .. "lvim/mason/")
+--local mason_path = vim.fn.glob(vim.fn.stdpath("data") .. "lvim/mason/")
 
 dap.configurations.rust = {
     {
@@ -11,14 +11,13 @@ dap.configurations.rust = {
             vim.fn.jobstart('cargo build')
             local execute = require('qss_nvim.utils').execute_and_capture_output
             local output = execute('find target/debug -name $(basename $(pwd))')
-            print(output)
-            --find target/debug -name (basename (pwd))
-            --return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
-            return output --return "/tmp/toto"
+            return output
         end,
         cwd = "${workspaceFolder}",
         stopOnEntry = false,
-        showDisassembly = "never"
+        showDisassembly = "never",
+        --        terminal = 'integrated',
+        sourceLanguages = { 'rust' }
     },
     {
         name = "Launch an executable",
@@ -30,7 +29,9 @@ dap.configurations.rust = {
         end,
         cwd = "${workspaceFolder}",
         stopOnEntry = false,
-        showDisassembly = "never"
+        showDisassembly = "never",
+        --      terminal = 'integrated',
+        sourceLanguages = { "rust" }
     },
 }
 

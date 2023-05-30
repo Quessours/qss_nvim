@@ -23,6 +23,7 @@ dap.configurations.cpp = {
         end,
         cwd = '${workspaceFolder}',
         stopOnEntry = false,
+        sourceLanguages = { "cpp" }
     },
 }
 

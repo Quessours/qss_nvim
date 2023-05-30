@@ -58,4 +58,7 @@ end
 
 configure_debuggers()
 
+-- TODO : Rework this to make it a bit more neat
+require('dap').defaults.fallback.exception_breakpoints = { "rust_panic", "cpp_throw", "cpp_catch" }
+
 return M
