@@ -5,7 +5,8 @@ lsp.on_attach(function(client, bufnr)
 end)
 
 
-lsp.skip_server_setup({ 'rust_analyzer' })
+lsp.skip_server_setup({ 'rust_analyzer', 'clangd' })
+
 
 
 -- (Optional) Configure lua language server for neovim
