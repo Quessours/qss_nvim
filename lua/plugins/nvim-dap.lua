@@ -1,24 +1,19 @@
---[[local function is_cargo_toml_present()
-    local scan = require("plenary.scan")
-    local cwd = vim.fn.getcwd()
-end
---]]
 local M = {
     'mfussenegger/nvim-dap',
     event = "BufReadPre",
     dependencies = {
-        "theHamsta/nvim-dap-virtual-text",
-        "rcarriga/nvim-dap-ui",
-        "nvim-telescope/telescope-dap.nvim",
-        "jbyuki/one-small-step-for-vimkind",
-        "mfussenegger/nvim-dap-python",
+        { "theHamsta/nvim-dap-virtual-text",   lazy = true },
+        { "rcarriga/nvim-dap-ui",              lazy = true },
+        { "nvim-telescope/telescope-dap.nvim", lazy = true },
+        { "jbyuki/one-small-step-for-vimkind", lazy = true },
+        { "mfussenegger/nvim-dap-python",      lazy = true },
     },
     config = function()
         require('qss_nvim.nvim-dap').setup()
         require('qss_nvim.nvim-dap.utils')
-    end
+    end,
+    lazy = true
 }
 
---is_cargo_toml_present()
 
 return M

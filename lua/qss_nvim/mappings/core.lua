@@ -1,6 +1,6 @@
 M = {
     n = {
-        ["<leader>af"] = { vim.lsp.buf.format, "focus nvimtree" },
+        ["<leader>af"] = { vim.lsp.buf.format, "Autoformat" },
         ["gb"] = { "<C-O>", "Go back" },
         ["<C-d>"] = { "<C-d>zz" },
         ["<C-u>"] = { "<C-u>zz" },
