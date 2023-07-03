@@ -6,8 +6,11 @@ M = {
         ["<leader>crt"] = { "<cmd> BufferCloseBuffersRight<CR>", "Close tabs on the right" },
         ["<leader>clt"] = { "<cmd> BufferCloseBuffersLeft<CR>", "Close tabs on the left" },
         ["<leader>cut"] = { "<cmd> BufferCloseAllButCurrentOrPinned<CR>", "Close unpinned tabs" },
-        ["<leader>st"] = { "<cmd> BufferPick<CR>", "Select tab ?" },
-        ["<leader>pt"] = { "<cmd> BufferPin<CR>", "Pin/unpin tab ?" },
+        ["<leader>ot"] = { "<cmd> BufferPick<CR>", "Select tab" },
+        ["<leader>pt"] = { "<cmd> BufferPin<CR>", "Pin/unpin tab" },
+        ["<leader>cct"] = { "<cmd> BufferClose<CR>", "Close tab" },
+        ["<leader>ot"] = { "<cmd> BufferPickDelete<CR>", "Close selected tab" },
+        ["<leader>rt"] = { "<cmd> BufferRestore<CR>", "Reopen closed tab" },
     }
 }
 

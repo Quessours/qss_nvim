@@ -9,7 +9,7 @@ local options = {
     exclude_name = {},
 
     focus_on_close = "left",
-    highlight_alternate = true, -- TODO : Check what it does
+    highlight_alternate = false, -- TODO : Check what it does
     highlight_inactive_file_icons = true,
     insert_at_end = false,
     insert_at_start = false,
