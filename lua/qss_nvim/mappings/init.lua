@@ -8,6 +8,7 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.telescope.ma
 --mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.bufferline.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.barbar-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.lsp-zero.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.symbols-outline.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.mappings.core"))
 
 require('qss_nvim.utils').apply_mappings(mappings)
