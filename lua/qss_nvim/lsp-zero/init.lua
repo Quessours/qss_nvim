@@ -11,9 +11,7 @@ lsp.skip_server_setup({ 'rust_analyzer', 'clangd' })
 
 -- (Optional) Configure lua language server for neovim
 require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
---require('lspconfig').rust_analyzer.setup({})
---require('lspconfig').pyright.setup({})
-
+require('lspconfig').sqlls.setup { root_dir = require('lspconfig').util.find_git_ancestor }
 lsp.setup()
 
 
