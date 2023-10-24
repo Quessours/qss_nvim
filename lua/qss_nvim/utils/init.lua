@@ -53,5 +53,8 @@ M.execute_and_capture_output = function(cmd, raw)
     return s
 end
 
+M.ends_with = function(str, ending)
+    return ending == "" or str:sub(- #ending) == ending
+end
 
 return M

@@ -4,14 +4,21 @@ lsp.on_attach(function(client, bufnr)
     lsp.default_keymaps({ buffer = bufnr })
 end)
 
-
-lsp.skip_server_setup({ 'rust_analyzer', 'clangd' })
+-- Why did I disabled clangd setup ???
+--lsp.skip_server_setup({ 'rust_analyzer', 'clangd' })
+lsp.skip_server_setup({ 'rust_analyzer' })
 
 
 
 -- (Optional) Configure lua language server for neovim
 require('lspconfig').lua_ls.setup(lsp.nvim_lua_ls())
 require('lspconfig').sqlls.setup { root_dir = require('lspconfig').util.find_git_ancestor }
+
+-- Why doesn't it work ??
+require('lspconfig').qmlls.setup { cmd = { "qmlls" }, filetypes = { "qml", "qmljs" }, root_dir = require("lspconfig")
+    .util
+    .find_git_ancestor, single_file_support = true } --root_dir = require('lspconfig').util.find_git_ancestor }
+require 'lspconfig'.cmake.setup {}
 lsp.setup()
 
 
