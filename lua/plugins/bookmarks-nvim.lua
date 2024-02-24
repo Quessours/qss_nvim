@@ -4,7 +4,7 @@ return {
     dependencies = { 'nvim-tree/nvim-web-devicons', 'nvim-telescope/telescope.nvim',
     },
     config = function()
-        config = require("qss_nvim.bookmarks-nvim")
+        local config = require("qss_nvim.bookmarks-nvim")
         require("bookmarks").setup(config)
     end
 }
