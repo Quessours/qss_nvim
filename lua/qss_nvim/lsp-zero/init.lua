@@ -17,8 +17,10 @@ require('lspconfig').sqlls.setup { root_dir = require('lspconfig').util.find_git
 -- Why doesn't it work ??
 require('lspconfig').qmlls.setup { cmd = { "qmlls" }, filetypes = { "qml", "qmljs" }, root_dir = require("lspconfig")
     .util
-    .find_git_ancestor, single_file_support = true } --root_dir = require('lspconfig').util.find_git_ancestor }
+    .find_git_ancestor, single_file_support = true }
 require 'lspconfig'.cmake.setup {}
+require 'lspconfig'.pyright.setup {}
+require 'lspconfig'.bashls.setup { single_file_support = true, filetypes = { "sh", "bash" } }
 lsp.setup()
 
 
