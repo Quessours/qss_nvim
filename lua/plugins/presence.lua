@@ -1,3 +1,4 @@
+--[[
 return {
     'andweeb/presence.nvim',
     config = function()
@@ -26,3 +27,5 @@ return {
         })
     end
 }
+--]]
+return {}

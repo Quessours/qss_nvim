@@ -6,5 +6,8 @@ return {
             args = { "build" },
             components = {}
         }
-    end
+    end,
+    condition = {
+        filetype = { "zig" }
+    }
 }
