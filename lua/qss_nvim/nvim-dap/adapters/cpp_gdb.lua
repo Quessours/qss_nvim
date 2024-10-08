@@ -27,18 +27,10 @@ dap.configurations.cpp = {
 	},
 }
 --]]
+-- TODO : Need to call cp cppdbg.ad7Engine.json nvim-dap.ad7Engine.json in
+-- ~/.local/share/nvim/mason/packages/cpptools/extension/debugAdapters/bin
+-- Have to automatize that ?
 dap.configurations.cpp = {
-    --[[
-	{
-		name = "Launch file",
-		type = "cppdbg",
-		request = "launch",
-		program = function()
-			return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
-		end,
-		cwd = '${workspaceFolder}',
-		stopAtEntry = true,
-	}, --]]
     {
         name = "Launch gdbserver",
         type = "cppdbg",
@@ -51,24 +43,36 @@ dap.configurations.cpp = {
         debugServerArgs = { "localhost:1234", "--no-startup-with-shell" },
         stopAtEntry = true,
     },
+    --[[
     {
         name = 'Attach to gdbserver :1234',
         type = 'cppdbg',
-        request = 'launch',
+        request = 'attach',
+        target = 'localhost:1234',
+        program = function()
+            return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+        end,
+        cwd = '${workspaceFolder}'
+    },--]]
+    {
+        name = 'Attach to gdbserver :1234',
+        type = 'cppdbg',
+        request = 'attach',
         MIMode = 'gdb',
         miDebuggerServerAddress = 'localhost:1234',
         miDebuggerPath = '/usr/bin/gdb',
         cwd = '${workspaceFolder}',
-        --program = function()
-        --	return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
-        --end,
+        program = function()
+            return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+        end,
     },
 }
+--[[
 dap.configurations.cpp = { {
     name = "C++ Launch",
     type = "cppdbg",
     request = "launch",
-    program = "/home/maxime/15_nvim_tests/01_dummy_projects/01_C/build/debug/toto", --function() return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file') end,
+    program = function() return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file') end,
     cwd = '${workspaceFolder}',
     stopAtEntry = false,
     launchCompleteCommand = "exec-run",
@@ -76,7 +80,7 @@ dap.configurations.cpp = { {
     externalConsole = false,
     miDebuggerPath = "/usr/bin/gdb"
 } }
-
+--]]
 dap.configurations.h = dap.configurations.cpp
 dap.configurations.c = dap.configurations.cpp
 

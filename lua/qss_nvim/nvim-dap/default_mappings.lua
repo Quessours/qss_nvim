@@ -18,6 +18,7 @@ local mappings = {
         ["<leader>dq"] = { "<cmd>lua require'dap'.close()<cr>", "Quit" },
         ["<leader>dr"] = { "<cmd>lua require'dap'.repl.toggle()<cr>", "Toggle Repl" },
         ["<leader>ds"] = { "<cmd>lua require'dap'.continue()<cr>", "Start" },
+        ["<leader>da"] = { "<cmd>lua require'dap'.attach()<cr>", "Attach" },
         ["<leader>dt"] = { "<cmd>lua require'dap'.toggle_breakpoint()<cr>", "Toggle Breakpoint" },
         ["<leader>dx"] = { "<cmd>lua require'dap'.terminate()<cr>", "Terminate" },
         ["<leader>du"] = { "<cmd>lua require'dap'.step_out()<cr>", "Step Out" },
