@@ -57,7 +57,7 @@ dap.configurations.cpp = {
     {
         name = 'Attach to gdbserver :1234',
         type = 'cppdbg',
-        request = 'attach',
+        request = 'launch',
         MIMode = 'gdb',
         miDebuggerServerAddress = 'localhost:1234',
         miDebuggerPath = '/usr/bin/gdb',

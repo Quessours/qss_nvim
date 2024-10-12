@@ -2,7 +2,7 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
 vim.opt.rtp:prepend("/home/maxime/98_test_nvim_plugins")
-hello_world = require("hello_world").hello
+--hello_world = require("hello_world").hello
 
 
 mappings = require("qss_nvim.mappings")
