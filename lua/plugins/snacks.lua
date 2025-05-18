@@ -21,14 +21,14 @@ return {
         indent = { enabled = true },
         input = { enabled = true },
         picker = { enabled = true },
-        notifier = { enabled = true },
+        notifier = { enabled = true, timeout = 30 },
         quickfile = { enabled = true },
         scope = { enabled = true },
         scroll = { enabled = true },
         statuscolumn = { enabled = true },
         words = { enabled = true },
         zen = { enabled = true },
-        terminal = { enabled = true },
+        dim = { enabled = true },
         git = { enabled = true }
     },
 }

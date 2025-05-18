@@ -1,4 +1,5 @@
-local lsp = require('lsp-zero').preset({})
+return {}
+--local lsp = require('lsp-zero').preset({})
 
 lsp.on_attach(function(client, bufnr)
     lsp.default_keymaps({ buffer = bufnr })
@@ -42,7 +43,9 @@ local cmp = require('cmp')
 local options = {
     mapping = {
         ['<CR>'] = cmp.mapping.confirm({ select = true }),
-        ['<C-Space>'] = cmp.mapping.complete()
+        ['<C-Space>'] = cmp.mapping.complete(),
+        ['<C-d>'] = cmp.mapping.scroll_docs(-4),
+        ['<C-f>'] = cmp.mapping.scroll_docs(4),
     },
     sources = {
         { name = 'path' },
