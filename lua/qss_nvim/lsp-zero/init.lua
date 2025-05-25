@@ -21,7 +21,7 @@ require('lspconfig').qmlls.setup { cmd = { "qmlls" }, filetypes = { "qml", "qmlj
     .find_git_ancestor, single_file_support = true }
 require 'lspconfig'.cmake.setup {}
 require 'lspconfig'.pyright.setup {}
-require 'lspconfig'.bashls.setup { single_file_support = true, shellcheckPath = "",
+require 'lspconfig'.bashls.setup { single_file_support = true, --, shellcheckPath = "",
     filetypes = { "sh", "bash" } }
 lsp.setup()
 

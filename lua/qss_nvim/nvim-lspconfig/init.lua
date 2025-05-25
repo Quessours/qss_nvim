@@ -87,7 +87,6 @@ vim.api.nvim_create_autocmd('LspAttach', {
 })
 
 local lsp_configs = require("qss_nvim.lsp_settings")
-vim.notify(require('qss_nvim.utils').dump_table(lsp_configs))
 require('lspconfig').lua_ls.setup(lsp_configs.lua_ls)
 require('lspconfig').sqlls.setup { root_dir = require('lspconfig').util.find_git_ancestor }
 
