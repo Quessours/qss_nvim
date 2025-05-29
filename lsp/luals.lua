@@ -1,10 +1,3 @@
---[[return {
-  cmd = {'lua-language-server'},
-  filetypes = {'lua'},
-  root_markers = {'.luarc.json', '.luarc.jsonc'},
-}--]]
-
-
 local util = require 'lspconfig.util'
 
 local root_files = {
@@ -26,8 +19,8 @@ return {
         root_dir = util.root_pattern(root_files),
         single_file_support = true,
         log_level = vim.lsp.protocol.MessageType.Warning,
-    docs = {
-        description = [[
+        docs = {
+            description = [[
 https://github.com/luals/lua-language-server
 
 Lua language server.
@@ -81,6 +74,6 @@ See `lua-language-server`'s [documentation](https://luals.github.io/wiki/setting
 * [Lua.workspace.library](https://luals.github.io/wiki/settings/#workspacelibrary)
 
 ]],
-    },
-}
+        },
+    }
 }
