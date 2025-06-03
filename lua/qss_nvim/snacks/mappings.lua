@@ -12,6 +12,10 @@ M = {
             Snacks.zen()
         end
         , "Toggle zen mode" },
+        ["<leader>gb"] = { function()
+            Snacks.git.blame_line()
+        end
+        , "Toggle zen mode" },
     }
 }
 

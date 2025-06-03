@@ -4,6 +4,16 @@ return {
     lazy = false,
     ---@type snacks.Config
     opts = {
+        styles = {
+            blame_line = {
+                width = .8,
+                height = .8,
+                border = "double",
+                title = " Git blame",
+                title_pos = "left",
+                ft = "git",
+            }
+        },
         dashboard =
             require("qss_nvim.snacks.dashboard_config"),
 
@@ -17,6 +27,8 @@ return {
         scroll = { enabled = true },
         statuscolumn = { enabled = true },
         words = { enabled = true },
-        zen = { enabled = true }
+        zen = { enabled = true },
+        terminal = { enabled = true },
+        git = { enabled = true }
     },
 }
