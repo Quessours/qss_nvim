@@ -1,6 +1,5 @@
 return {
-    'VonHeikemen/lsp-zero.nvim',
-    branch = 'v2.x',
+    "neovim/nvim-lspconfig",
     dependencies = {
         -- LSP Support
         { 'neovim/nvim-lspconfig' }, -- Required
@@ -26,7 +25,10 @@ return {
         },
         { 'rafamadriz/friendly-snippets' },
     },
-    init = function()
-        require("qss_nvim.lsp-zero")
+    config = function()
+        --local lspconfig = require('lspconfig')
+        --local lsp_configs = require("qss_nvim.lsp_settings")
+        --lspconfig.lua_ls.setup(lsp_configs.lua_ls)
+        require('qss_nvim.nvim-lspconfig')
     end
 }

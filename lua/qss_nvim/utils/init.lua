@@ -29,8 +29,16 @@ dump_table = function(o)
         return tostring(o)
     end
 end
-
 M.dump_table = dump_table
+
+list_linters = function()
+    local linters = require("lint").get_running()
+    if #linters == 0 then
+        return "󰦕"
+    end
+    return "󱉶 " .. table.concat(linters, ", ")
+end
+M.list_linters = list_linters
 
 M.scan_dir = function()
     local i, t, popen = 0, {}, io.popen
