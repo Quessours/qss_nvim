@@ -11,7 +11,7 @@ return {
         return false
     end,
     config = function()
-        settings = require('qss_nvim.clang-extensions.settings')
+        local settings = require('qss_nvim.clang-extensions.settings')
         require('clangd_extensions').setup(settings)
     end
 }

@@ -37,6 +37,7 @@ require 'lspconfig'.cmake.setup {}
 require 'lspconfig'.pyright.setup {}
 require 'lspconfig'.bashls.setup { single_file_support = true, shellcheckPath = "",
     filetypes = { "sh", "bash" } }
+--require 'lspconfig'.ts_ls.setup({})
 
 local function border(hl_name)
     return {
