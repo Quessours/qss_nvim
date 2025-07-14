@@ -2,7 +2,7 @@ return {
     "neovim/nvim-lspconfig",
     dependencies = {
         -- LSP Support
-        { 'neovim/nvim-lspconfig' }, -- Required
+        --        { 'neovim/nvim-lspconfig' }, -- Required
         {
             -- Optional
             'williamboman/mason.nvim',
@@ -26,9 +26,7 @@ return {
         { 'rafamadriz/friendly-snippets' },
     },
     config = function()
-        --local lspconfig = require('lspconfig')
-        --local lsp_configs = require("qss_nvim.lsp_settings")
-        --lspconfig.lua_ls.setup(lsp_configs.lua_ls)
         require('qss_nvim.nvim-lspconfig')
-    end
+        vim.lsp.inlay_hint.enable(true)
+    end,
 }

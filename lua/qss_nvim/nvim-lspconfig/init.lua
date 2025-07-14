@@ -24,12 +24,11 @@ vim.api.nvim_create_autocmd('LspAttach', {
         vim.keymap.set('n', '<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
     end,
 })
-
+--[[
 local lsp_configs = require("qss_nvim.lsp_settings")
 require('lspconfig').lua_ls.setup(lsp_configs.lua_ls)
 require('lspconfig').sqlls.setup { root_dir = require('lspconfig').util.find_git_ancestor }
 
--- TODO(mmiko) : test this config
 require('lspconfig').qmlls.setup { cmd = { "qmlls" }, filetypes = { "qml", "qmljs" }, root_dir = require("lspconfig")
     .util
     .find_git_ancestor, single_file_support = true }
@@ -37,6 +36,7 @@ require 'lspconfig'.cmake.setup {}
 require 'lspconfig'.pyright.setup {}
 require 'lspconfig'.bashls.setup { single_file_support = true, shellcheckPath = "",
     filetypes = { "sh", "bash" } }
+--]]
 
 local function border(hl_name)
     return {
