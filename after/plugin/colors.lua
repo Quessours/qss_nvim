@@ -3,7 +3,7 @@ function Colorize(color_theme)
     vim.cmd.colorscheme(color_theme)
 
     vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
-    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none" })
+    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none", fg = "NvimLightYellow" })
     vim.api.nvim_set_hl(0, "EndOfBuffer", { bg = "none" })
     vim.api.nvim_set_hl(0, "WinSeparator", { bg = "none" })
     vim.api.nvim_set_hl(0, "LineNrAbove", { bg = "none" })
@@ -11,7 +11,7 @@ function Colorize(color_theme)
     vim.api.nvim_set_hl(0, "TabLine", { bg = "none" })
     vim.api.nvim_set_hl(0, "TabLineFill", { bg = "none" })
     vim.api.nvim_set_hl(0, "TabLineSel", { bg = "none" })
-
+    vim.api.nvim_set_hl(0, "LspInlayHint", { bg = "none", fg = "#888888" })
     --require("qss_nvim.bufferline")
 end
 

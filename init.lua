@@ -3,11 +3,7 @@ vim.g.loaded_netrwPlugin = 1
 
 vim.diagnostic.config({ virtual_text = true })
 
-lsp = require("qss_nvim.lsp_init")
-
 mappings = require("qss_nvim.mappings")
-
-
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
@@ -25,16 +21,10 @@ end
 
 vim.opt.rtp:prepend(lazypath)
 
-vim.filetype.add({
-    extension = {
-        qml = 'qml'
-    }
-})
-
 require("lazy").setup("plugins")
 
+require('lsp.lsp_init')
 
---vim.cmd("set relativenumber")
 local options = require("qss_nvim.config.options")
 for k, v in pairs(options) do
     vim.opt[k] = v
