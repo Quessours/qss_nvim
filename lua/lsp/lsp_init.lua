@@ -1,11 +1,20 @@
 local luals_config = require("lsp.configs.luals")
 local clangd_config = require("lsp.configs.clangd")
+local bashls_config = require("lsp.configs.bashls")
+local fishlsp_config = require("lsp.configs.fish_lsp")
+local pyright_config = require("lsp.configs.pyright")
 
 local lspconfig = require('lspconfig')
 
 lspconfig.lua_ls.setup(luals_config)
 lspconfig.clangd.setup(clangd_config)
+lspconfig.bashls.setup(bashls_config)
+lspconfig.fish_lsp.setup(fishlsp_config)
+lspconfig.pyright.setup(pyright_config)
 
 vim.lsp.enable('luals')
 vim.lsp.enable('clangd')
 vim.lsp.enable('zls')
+vim.lsp.enable('bashls')
+vim.lsp.enable('fish_lsp')
+vim.lsp.enable('pyright')
