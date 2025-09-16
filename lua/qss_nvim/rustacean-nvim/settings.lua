@@ -140,9 +140,9 @@ local opts = {
     server = {
         on_attach = function(_, bufnr)
             -- Hover actions
-            vim.keymap.set("n", "<leader>h", vim.cmd.RustLsp('hover actions'), { buffer = bufnr })
+            vim.keymap.set("n", "<leader>h", function() vim.cmd.RustLsp('hover actions') end, { buffer = bufnr })
             -- Code action groups
-            vim.keymap.set("n", "<leader>cag", vim.cmd.RustLsp('codeAction'), { buffer = bufnr })
+            vim.keymap.set("n", "<leader>cag", function() vim.cmd.RustLsp('codeAction') end, { buffer = bufnr })
         end,
     },
     -- debugging stuff
