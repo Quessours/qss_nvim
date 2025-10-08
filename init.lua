@@ -3,9 +3,9 @@ vim.g.loaded_netrwPlugin = 1
 
 vim.diagnostic.config({ virtual_text = true })
 
-lsp = require("qss_nvim.lsp_init")
+local lsp = require("qss_nvim.lsp_init")
 
-mappings = require("qss_nvim.mappings")
+local mappings = require("qss_nvim.mappings")
 
 
 
@@ -40,5 +40,5 @@ for k, v in pairs(options) do
     vim.opt[k] = v
 end
 
-qss_utils = require("qss_nvim.utils")
-qss_dap_utils = require("qss_nvim.nvim-dap.utils")
+local qss_utils = require("qss_nvim.utils")
+local qss_dap_utils = require("qss_nvim.nvim-dap.utils")
