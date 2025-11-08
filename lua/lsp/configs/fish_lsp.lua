@@ -1,4 +1,4 @@
-local util = require 'lspconfig.util'
+local util = require("qss_nvim.utils")
 
 return {
     default_config = {

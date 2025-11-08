@@ -4,7 +4,7 @@ vim.g.loaded_netrwPlugin = 1
 vim.diagnostic.config({ virtual_text = true })
 vim.diagnostic.config({ virtual_text = true })
 
-local lsp = require("qss_nvim.lsp_init")
+--local lsp = require("lsp.lsp_init")
 
 local mappings = require("qss_nvim.mappings")
 

@@ -1,4 +1,4 @@
-local util = require 'lspconfig.util'
+local util = require("qss_nvim.utils")
 
 -- https://clangd.llvm.org/extensions.html#switch-between-sourceheader
 local function switch_source_header(bufnr)
