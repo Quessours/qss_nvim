@@ -3,8 +3,12 @@ return {
     event = "LspAttach",
     branch = 'feature/make-inlay-hints-handler-customizable',
     opts = {}, -- required, even if empty
-    config = function()
+    init = function()
+        local rust_endhint = require('qss_nvim.custom_inlay_hints_handler.rust')
         local endhints = require("lsp-endhints")
-        endhints.setRefreshHandlersTable({})
+        endhints.setRefreshHandlersTable({ ["rust"] = rust_endhint.refreshHandler })
+        local current_lsp_name = "rust"
+        vim.notify(current_lsp_name)
+        endhints.enable(current_lsp_name)
     end
 }

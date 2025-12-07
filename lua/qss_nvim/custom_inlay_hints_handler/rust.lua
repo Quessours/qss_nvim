@@ -1,4 +1,4 @@
-local rt = require("rust-tools")
+-- local rt = require("rust-tools")
 -- trucs à porter pour arrêter de dépendre de rust-tools
 -- rt.config.options.tools.inlay_hints :
 --[[
@@ -43,6 +43,42 @@ local rt = require("rust-tools")
 --]]
 -- rt.utils.is_ra_server(v) : On peut faire sans
 
+local inlay_hints_option =
+{
+    -- automatically set inlay hints (type hints)
+    -- default: true
+    auto = true,
+
+    -- Only show inlay hints for the current line
+    only_current_line = false,
+
+    -- whether to show parameter hints with the inlay hints or not
+    -- default: true
+    show_parameter_hints = true,
+
+    -- prefix for parameter hints
+    -- default: "<-"
+    parameter_hints_prefix = "<- ",
+
+    -- prefix for all the other hints (type, chaining)
+    -- default: "=>"
+    other_hints_prefix = "=> ",
+
+    -- whether to align to the length of the longest line in the file
+    max_len_align = false,
+
+    -- padding from the left if max_len_align is true
+    max_len_align_padding = 1,
+
+    -- whether to align to the extreme right or not
+    right_align = false,
+
+    -- padding from the right if right_align is true
+    right_align_padding = 7,
+
+    -- The color of the hints
+    highlight = "Comment",
+}
 
 local M = {}
 
@@ -94,7 +130,7 @@ function M.unset()
 end
 
 function M.enable_cache_autocmd()
-    local opts = rt.config.options.tools.inlay_hints
+    local opts = inlay_hints_option
     vim.cmd(
         string.format(
             [[
@@ -231,7 +267,7 @@ local function parse_hint_label(hint_label)
 end
 
 local function render_line(line, line_hints, bufnr, max_line_len)
-    local opts = rt.config.options.tools.inlay_hints
+    local opts = inlay_hints_option
     local virt_text = ""
 
     local param_hints = {}
@@ -300,12 +336,12 @@ local function render_line(line, line_hints, bufnr, max_line_len)
 end
 
 function M.render(self, bufnr)
-    local opts = rt.config.options.tools.inlay_hints
     local buffer = bufnr or vim.api.nvim_get_current_buf()
 
     local cached = self.cache[buffer]
 
     if cached == nil then
+        self.cache_render(bufnr)
         return
     end
 
@@ -313,17 +349,20 @@ function M.render(self, bufnr)
 
     clear_ns(buffer)
 
-    if opts.only_current_line then
-        local curr_line = vim.api.nvim_win_get_cursor(0)[1] - 1
-        local line_hints = hints[curr_line]
-        if line_hints then
-            render_line(curr_line, line_hints, buffer, max_line_len)
-        end
-    else
-        for line, line_hints in pairs(hints) do
-            render_line(line, line_hints, buffer, max_line_len)
-        end
+    local curr_line = vim.api.nvim_win_get_cursor(0)[1] - 1
+    local line_hints = hints[curr_line]
+    if line_hints then
+        render_line(curr_line, line_hints, buffer, max_line_len)
     end
+end
+
+---
+---@param err table
+---@param result lsp.InlayHint[]?
+---@param ctx lsp.HandlerContext
+---@param _ table -- config
+function M.refreshHandler(err, result, ctx, _)
+    M.render(ctx.bufnr)
 end
 
 return M
