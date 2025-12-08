@@ -1,7 +1,7 @@
 return {
     "Quessours/nvim-lsp-endhints",
     event = "LspAttach",
-    branch = 'feature/make-inlay-hints-handler-customizable',
+    branch = "feature/make-render-line-parametrizable ",
     opts = {}, -- required, even if empty
     init = function()
         local rust_endhint = require('qss_nvim.custom_inlay_hints_handler.rust')

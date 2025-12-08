@@ -325,6 +325,7 @@ local function render_line(line, line_hints, bufnr, max_line_len)
         if opts.right_align then
             virt_text = virt_text .. string.rep(" ", opts.right_align_padding)
         end
+        --[[
         vim.api.nvim_buf_set_extmark(bufnr, M.namespace, line, 0, {
             virt_text_pos = opts.right_align and "right_align" or "eol",
             virt_text = {
@@ -332,6 +333,7 @@ local function render_line(line, line_hints, bufnr, max_line_len)
             },
             hl_mode = "combine",
         })
+        --]]
     end
 end
 
@@ -363,6 +365,65 @@ end
 ---@param _ table -- config
 function M.refreshHandler(err, result, ctx, _)
     M.render(ctx.bufnr)
+end
+
+function M.formatInlayHints(line_hints, table)
+    local opts = inlay_hints_option
+    local virt_text = ""
+
+    local param_hints = {}
+    local other_hints = {}
+
+    if opts.max_len_align then
+        local line_len =
+            string.len(vim.api.nvim_buf_get_lines(bufnr, line, line + 1, true)[1])
+
+        virt_text =
+            string.rep(" ", max_line_len - line_len + opts.max_len_align_padding)
+    end
+
+    -- segregate parameter hints and other hints
+    for _, hint in ipairs(line_hints) do
+        if hint.kind == 2 then
+            table.insert(param_hints, parse_hint_label(hint.label))
+        end
+
+        if hint.kind == 1 then
+            table.insert(other_hints, parse_hint_label(hint.label))
+        end
+    end
+
+    -- show parameter hints inside brackets with commas and a thin arrow
+    if not vim.tbl_isempty(param_hints) and opts.show_parameter_hints then
+        virt_text = virt_text .. opts.parameter_hints_prefix .. "("
+        for i, p_hint in ipairs(param_hints) do
+            virt_text = virt_text .. p_hint:sub(1, -2)
+            if i ~= #param_hints then
+                virt_text = virt_text .. ", "
+            end
+        end
+        virt_text = virt_text .. ") "
+    end
+
+    -- show other hints with commas and a thicc arrow
+    if not vim.tbl_isempty(other_hints) then
+        virt_text = virt_text .. opts.other_hints_prefix
+        for i, o_hint in ipairs(other_hints) do
+            virt_text = virt_text .. o_hint:gsub("^: ", "")
+            if i ~= #other_hints then
+                virt_text = virt_text .. ", "
+            end
+        end
+    end
+
+    -- set the virtual text if it is not empty
+    if virt_text ~= "" then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        if opts.right_align then
+            virt_text = virt_text .. string.rep(" ", opts.right_align_padding)
+        end
+    end
+    return virt_text
 end
 
 return M
