@@ -11,7 +11,8 @@ function Colorize(color_theme)
     vim.api.nvim_set_hl(0, "TabLine", { bg = "none" })
     vim.api.nvim_set_hl(0, "TabLineFill", { bg = "none" })
     vim.api.nvim_set_hl(0, "TabLineSel", { bg = "none" })
-    vim.api.nvim_set_hl(0, "LspInlayHint", { bg = "none", fg = "#888888" })
+    vim.api.nvim_set_hl(0, "LspInlayHint",
+        { bg = "none", fg = "#888888", italic = true })
     --require("qss_nvim.bufferline")
 end
 

@@ -77,7 +77,7 @@ local inlay_hints_option =
     right_align_padding = 7,
 
     -- The color of the hints
-    highlight = "Comment",
+    highlight = "LspInlayHint",
 }
 
 local M = {}
@@ -277,14 +277,6 @@ local function render_line(line, line_hints, bufnr, max_line_len)
         return
     end
 
-    if opts.max_len_align then
-        local line_len =
-            string.len(vim.api.nvim_buf_get_lines(bufnr, line, line + 1, true)[1])
-
-        virt_text =
-            string.rep(" ", max_line_len - line_len + opts.max_len_align_padding)
-    end
-
     -- segregate parameter hints and other hints
     for _, hint in ipairs(line_hints) do
         if hint.kind == 2 then
@@ -335,6 +327,7 @@ local function render_line(line, line_hints, bufnr, max_line_len)
         })
         --]]
     end
+    return virt_text
 end
 
 function M.render(self, bufnr)
@@ -374,21 +367,13 @@ function M.formatInlayHints(line_hints, table)
     local param_hints = {}
     local other_hints = {}
 
-    if opts.max_len_align then
-        local line_len =
-            string.len(vim.api.nvim_buf_get_lines(bufnr, line, line + 1, true)[1])
-
-        virt_text =
-            string.rep(" ", max_line_len - line_len + opts.max_len_align_padding)
-    end
-
     -- segregate parameter hints and other hints
     for _, hint in ipairs(line_hints) do
-        if hint.kind == 2 then
+        if hint.kind == "parameter" then
             table.insert(param_hints, parse_hint_label(hint.label))
         end
 
-        if hint.kind == 1 then
+        if hint.kind == "type" then
             table.insert(other_hints, parse_hint_label(hint.label))
         end
     end
@@ -397,7 +382,7 @@ function M.formatInlayHints(line_hints, table)
     if not vim.tbl_isempty(param_hints) and opts.show_parameter_hints then
         virt_text = virt_text .. opts.parameter_hints_prefix .. "("
         for i, p_hint in ipairs(param_hints) do
-            virt_text = virt_text .. p_hint:sub(1, -2)
+            virt_text = virt_text .. p_hint:sub(1, -1)
             if i ~= #param_hints then
                 virt_text = virt_text .. ", "
             end
@@ -423,7 +408,7 @@ function M.formatInlayHints(line_hints, table)
             virt_text = virt_text .. string.rep(" ", opts.right_align_padding)
         end
     end
-    return virt_text
+    return { { virt_text, "LspInlayHint" } }
 end
 
 return M
