@@ -6,10 +6,12 @@ return {
     version = '^6', -- Recommended
     lazy = false,   -- This plugin is already lazy
     config = function()
-        --require("rustaceanvim").setup(opts)
+        require("rustaceanvim")
         vim.g.rustaceanvim = opts
         local mappings = require("qss_nvim.rustacean-nvim.mappings")
         assert(mappings ~= nil)
         apply_mappings(mappings)
+    end,
+    init = function()
     end
 }
