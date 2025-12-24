@@ -1,5 +1,4 @@
 local opts = require("qss_nvim.rustacean-nvim.settings")
-local apply_mappings = require("qss_nvim.utils").apply_mappings
 
 return {
     'mrcjkb/rustaceanvim',
@@ -18,10 +17,5 @@ return {
     config = function()
         require("rustaceanvim")
         vim.g.rustaceanvim = opts
-        local mappings = require("qss_nvim.rustacean-nvim.mappings")
-        assert(mappings ~= nil)
-        apply_mappings(mappings)
-    end,
-    init = function()
     end
 }

@@ -3,8 +3,6 @@ vim.g.loaded_netrwPlugin = 1
 
 vim.diagnostic.config({ virtual_text = true, severity_sort = true })
 
---local lsp = require("lsp.lsp_init")
-
 local mappings = require("qss_nvim.mappings")
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"

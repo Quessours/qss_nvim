@@ -142,13 +142,10 @@ local opts = {
     },
     server = {
         on_attach = function(_)
-            --[[
-            -- Hover actions
-            vim.keymap.set("n", "<leader>h", vim.cmd.RustLsp({ 'hover', 'actions' }), { buffer = bufnr })
-            -- Code action groups
-            vim.keymap.set("n", "<leader>cag", function() vim.cmd.RustLsp('codeAction') end,
-                { buffer = bufnr })
-                --]]
+            local apply_mappings = require("qss_nvim.utils").apply_mappings
+            local mappings = require("qss_nvim.rustacean-nvim.mappings")
+            assert(mappings ~= nil)
+            apply_mappings(mappings)
         end,
     },
     -- debugging stuff

@@ -3,13 +3,6 @@ local M = {
     event = "BufReadPre",
     lazy = true,
     config = function()
-        require('lint').linters_by_ft = {
-            --python = { 'basedpyright', 'basedpyright-langserver' },
-            -- Useless since we have a LSP for bash
-            --bash = { 'shellcheck' },
-            --shell = { 'shellcheck' },
-            --sh = { 'shellcheck' },
-        }
         vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost" }, {
             callback = function()
                 require("lint").try_lint()

@@ -17,6 +17,7 @@ M = {
         ["<leader>cag"] = {
             function()
                 if not isRustaceanEnabled() then
+                    vim.notify "Rustacean not enabled"
                     return
                 end
                 local bufnr = vim.api.nvim_get_current_buf()
@@ -25,8 +26,9 @@ M = {
                 -- or vim.lsp.buf.codeAction() if you don't want grouping.
             end,
             "Display code action group" },
-        ['<leader>ha'] = { function()
+        ['<leader>h'] = { function()
             if not isRustaceanEnabled() then
+                vim.notify "Rustacean not enabled"
                 return
             end
             vim.cmd.RustLsp { 'hover', 'actions' }
@@ -35,6 +37,10 @@ M = {
             "Rust Hover actions"
         },
         ['<leader>snd'] = { function()
+            if not isRustaceanEnabled() then
+                vim.notify "Rustacean not enabled"
+                return
+            end
             vim.cmd.RustLsp({ "renderDiagnostic", cycle })
             vim.cmd.RustLsp({ "renderDiagnostic", current })
         end
