@@ -3,7 +3,6 @@ local M = {
     event = "BufReadPre",
     dependencies = {
         { "theHamsta/nvim-dap-virtual-text",   lazy = true },
-        { "rcarriga/nvim-dap-ui",              lazy = true },
         { "nvim-telescope/telescope-dap.nvim", lazy = true },
         { "jbyuki/one-small-step-for-vimkind", lazy = true },
         { "mfussenegger/nvim-dap-python",      lazy = true },

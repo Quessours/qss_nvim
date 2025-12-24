@@ -6,7 +6,6 @@ M = {
         ["<leader>fu"] = { vim.lsp.buf.incoming_calls, "Find usages" },
         ["<leader>fr"] = { vim.lsp.buf.references, "Find references" },
         ["<leader>td"] = { vim.lsp.buf.type_definition, "Go to type definition" },
-        --["<leader>oc"] = { require('rust-tools').open_cargo_toml.open_cargo_toml, "Open Cargo.toml" },
     }
 }
 

@@ -1,15 +1,16 @@
 local extension_path = vim.fn.stdpath("data") .. "/mason/packages/codelldb/extension"
---local extension_path = vim.env.HOME .. '/opt/codelldb/extension/'
 local codelldb_path = extension_path .. 'adapter/codelldb'
 local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
 
 local opts = {
     tools = {
-        -- rust-tools options
+        -- rustacean-nvim options
 
         -- callback to execute once rust-analyzer is done initializing the workspace
         -- The callback receives one parameter indicating the `health` of the server: "ok" | "warning" | "error"
-        on_initialized = nil,
+        on_initialized = function()
+            vim.notify("Rust-initializer ok")
+        end,
         -- automatically call RustReloadWorkspace when writing to a Cargo.toml file.
         reload_workspace_from_cargo_toml = true,
         -- These apply to the default RustSetInlayHints command
@@ -39,10 +40,7 @@ local opts = {
             -- The color of the hints
             highlight = "Comment",
         },
-        -- options same as lsp hover / vim.lsp.util.open_floating_preview()
-        hover_actions = {
-            -- the border that is used for the hover window
-            -- see vim.api.nvim_open_win()
+        float_win_config = {
             border = {
                 { "╭", "FloatBorder" },
                 { "─", "FloatBorder" },
@@ -53,13 +51,18 @@ local opts = {
                 { "╰", "FloatBorder" },
                 { "│", "FloatBorder" },
             },
+        },
+        -- options same as lsp hover / vim.lsp.util.open_floating_preview()
+        hover_actions = {
+            -- the border that is used for the hover window
+            -- see vim.api.nvim_open_win()
             -- Maximal width of the hover window. Nil means no max.
-            max_width = nil,
+            max_width = 10,
             -- Maximal height of the hover window. Nil means no max.
-            max_height = nil,
+            max_height = 5,
             -- whether the hover action window gets automatically focused
             -- default: false
-            auto_focus = true,
+            auto_focus = false,
         },
         -- settings for showing the crate graph based on graphviz and the dot
         -- command
@@ -137,14 +140,22 @@ local opts = {
             },
         },
     },
+    server = {
+        on_attach = function(_)
+            local apply_mappings = require("qss_nvim.utils").apply_mappings
+            local mappings = require("qss_nvim.rustacean-nvim.mappings")
+            assert(mappings ~= nil)
+            apply_mappings(mappings)
+        end,
+    },
     -- debugging stuff
-    dap =
+    --[[dap =
     {
         adapter = function()
             return require('rust-tools.dap').get_codelldb_adapter(
                 codelldb_path, liblldb_path)
         end
-    }
+    }--]]
 }
 
 
