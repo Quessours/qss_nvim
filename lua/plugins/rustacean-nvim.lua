@@ -17,5 +17,5 @@ return {
     config = function()
         require("rustaceanvim")
         vim.g.rustaceanvim = opts
-    end
+    end,
 }

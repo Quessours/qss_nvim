@@ -148,6 +148,12 @@ local opts = {
             apply_mappings(mappings)
         end,
     },
+    enable_nextest = true,
+    init_options = {
+        userLanguages = {
+            rust = "html"
+        }
+    }
     -- debugging stuff
     --[[dap =
     {

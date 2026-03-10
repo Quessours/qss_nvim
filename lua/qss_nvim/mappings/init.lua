@@ -12,5 +12,6 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.symbols-outl
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.hex-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.mappings.core"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.snacks.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.git-conflict-nvim.mappings"))
 
 require('qss_nvim.utils').apply_mappings(mappings)

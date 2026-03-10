@@ -28,4 +28,11 @@ return {
         require('qss_nvim.nvim-lspconfig')
         vim.lsp.inlay_hint.enable(true)
     end,
+    init_options = {
+        userLanguages = {
+            eelixir = "html-eex",
+            eruby = "erb",
+            rust = "html",
+        },
+    }
 }
