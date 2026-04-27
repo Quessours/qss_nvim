@@ -1,7 +1,5 @@
 dap = require('dap')
 
---local mason_path = vim.fn.glob(vim.fn.stdpath("data") .. "lvim/mason/")
-
 dap.configurations.rust = {
     {
         name = "Launch default executable",
@@ -19,6 +17,32 @@ dap.configurations.rust = {
         showDisassembly = "never",
         console = 'integratedTerminal',
         sourceLanguages = { 'rust' }
+    },
+    {
+        name = "Launch default executable with custom args",
+        type = "codelldb",
+        request = "launch",
+        program = function()
+            vim.fn.jobstart('cargo build')
+            local execute = require('qss_nvim.utils').execute_and_capture_output
+            local output = execute('find target/debug -name $(basename $(pwd))')
+            return output
+        end,
+        args = function()
+            local arguments = vim.fn.input('Arguments: ')
+            local split_arguments = {}
+            for arg in string.gmatch(arguments, "%a+") do
+                table.insert(split_arguments, arg)
+            end
+
+            return split_arguments
+        end,
+        cwd = "${workspaceFolder}",
+        env = { RUST_BACKTRACE = "1" },
+        stopOnEntry = false,
+        showDisassembly = "never",
+        console = 'integratedTerminal',
+        sourceLanguages = { "rust" }
     },
     {
         name = "Launch an executable",
