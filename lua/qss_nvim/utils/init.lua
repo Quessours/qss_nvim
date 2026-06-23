@@ -9,7 +9,7 @@ local function tbl_flatten(t)
   return nvim_eleven and vim.iter(t):flatten(math.huge):totable() or vim.tbl_flatten(t)
 end
 
-M = {}
+local M = {}
 
 -- For zipfile: or tarfile: virtual paths, returns the path to the archive.
 -- Other paths are returned unaltered.

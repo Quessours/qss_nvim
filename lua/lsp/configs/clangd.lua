@@ -3,7 +3,7 @@ local util = require("qss_nvim.utils")
 -- https://clangd.llvm.org/extensions.html#switch-between-sourceheader
 local function switch_source_header(bufnr)
     local method_name = 'textDocument/switchSourceHeader'
-    bufnr = util.validate_bufnr(bufnr)
+    bufnr = (((bufnr == 0) and vim.api.nvim_get_current_buf()) or bufnr)
     local client = vim.lsp.get_clients({ bufnr = bufnr, name = 'clangd' })[1]
     if not client then
         return vim.notify(('method %s is not supported by any servers active on the current buffer'):format(method_name))
