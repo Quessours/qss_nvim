@@ -5,8 +5,8 @@ local function escape_wildcards(path)
 end
 
 local function tbl_flatten(t)
-  --- @diagnostic disable-next-line:deprecated
-  return nvim_eleven and vim.iter(t):flatten(math.huge):totable() or vim.tbl_flatten(t)
+    --- @diagnostic disable-next-line:deprecated
+    return nvim_eleven and vim.iter(t):flatten(math.huge):totable() or vim.tbl_flatten(t)
 end
 
 local M = {}
@@ -14,15 +14,15 @@ local M = {}
 -- For zipfile: or tarfile: virtual paths, returns the path to the archive.
 -- Other paths are returned unaltered.
 function M.strip_archive_subpath(path)
-  -- Matches regex from zip.vim / tar.vim
-  path = vim.fn.substitute(path, 'zipfile://\\(.\\{-}\\)::[^\\\\].*$', '\\1', '')
-  path = vim.fn.substitute(path, 'tarfile:\\(.\\{-}\\)::.*$', '\\1', '')
-  return path
+    -- Matches regex from zip.vim / tar.vim
+    path = vim.fn.substitute(path, 'zipfile://\\(.\\{-}\\)::[^\\\\].*$', '\\1', '')
+    path = vim.fn.substitute(path, 'tarfile:\\(.\\{-}\\)::.*$', '\\1', '')
+    return path
 end
 
 M.tbl_flatten = function(t)
-  --- @diagnostic disable-next-line:deprecated
-  return nvim_eleven and vim.iter(t):flatten(math.huge):totable() or vim.tbl_flatten(t)
+    --- @diagnostic disable-next-line:deprecated
+    return nvim_eleven and vim.iter(t):flatten(math.huge):totable() or vim.tbl_flatten(t)
 end
 
 M.apply_mappings = function(mappings)
@@ -41,26 +41,27 @@ end
 
 --- Deprecated in Nvim 0.11
 function M.search_ancestors(startpath, func)
-  if nvim_eleven then
-    validate('func', func, 'function')
-  end
-  if func(startpath) then
-    return startpath
-  end
-  local guard = 100
-  for path in vim.fs.parents(startpath) do
-    -- Prevent infinite recursion if our algorithm breaks
-    guard = guard - 1
-    if guard == 0 then
-      return
+    if nvim_eleven then
+        validate('func', func, 'function')
     end
+    if func(startpath) then
+        return startpath
+    end
+    local guard = 100
+    for path in vim.fs.parents(startpath) do
+        -- Prevent infinite recursion if our algorithm breaks
+        guard = guard - 1
+        if guard == 0 then
+            return
+        end
 
-    if func(path) then
-      return path
+        if func(path) then
+            return path
+        end
     end
-  end
 end
-dump_table = function(o)
+
+local dump_table = function(o)
     if type(o) == 'table' then
         local s = '{ '
         for k, v in pairs(o) do
@@ -74,7 +75,7 @@ dump_table = function(o)
 end
 M.dump_table = dump_table
 
-list_linters = function()
+local list_linters = function()
     local linters = require("lint").get_running()
     if #linters == 0 then
         return "󰦕"

@@ -1,13 +1,3 @@
---[[local lspconfig_defaults = require('lspconfig').util.default_config
-
-lspconfig_defaults.capabilities = vim.tbl_deep_extend(
-    'force',
-    lspconfig_defaults.capabilities,
-    require('cmp_nvim_lsp').default_capabilities()
-)
---]]
--- This is where you enable features that only work
--- if there is a language server active in the file
 vim.api.nvim_create_autocmd('LspAttach', {
     desc = 'LSP actions',
     callback = function(event)
@@ -28,4 +18,3 @@ vim.api.nvim_create_autocmd('LspAttach', {
         vim.keymap.set('n', '<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
     end,
 })
-
