@@ -13,9 +13,12 @@ dap.adapters.codelldb = {
     }
 }
 
+-- CMake projects go through :CMakeDebug, which builds the selected launch target
+-- and hands dap the resolved binary. This one is the fallback for everything
+-- else, so it asks for a path and builds nothing.
 dap.configurations.cpp = {
     {
-        name = "Launch file",
+        name = "Launch file (no build)",
         type = "codelldb",
         request = "launch",
         program = function()

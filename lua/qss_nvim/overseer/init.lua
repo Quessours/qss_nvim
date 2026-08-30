@@ -1,4 +1,7 @@
-local os = require('overseer')
+local overseer = require('overseer')
 
-os.register_template(require('qss_nvim.overseer.templates.zig'))
--- os.register_template(require('qss_nvim.overseer.templates.rust_run_tests'))
+overseer.register_template(require('qss_nvim.overseer.templates.zig'))
+overseer.register_template(require('qss_nvim.overseer.templates.cmake_configure'))
+overseer.register_template(require('qss_nvim.overseer.templates.cmake_build'))
+
+-- WARN : Don't add things related to rust here. Overseer handles basic cargo commands by default

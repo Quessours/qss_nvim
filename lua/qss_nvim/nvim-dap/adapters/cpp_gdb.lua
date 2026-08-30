@@ -80,7 +80,9 @@ dap.configurations.cpp = { {
 dap.configurations.h = dap.configurations.cpp
 dap.configurations.c = dap.configurations.cpp
 
-start_c_debugger = function(args)
+local last_gdb_config
+
+_G.start_c_debugger = function(args)
     local dap = require "dap"
     if args and #args > 0 then
         last_gdb_config = {

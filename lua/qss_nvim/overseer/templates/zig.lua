@@ -4,7 +4,7 @@ return {
         return {
             cmd = { "zig" },
             args = { "build" },
-            components = {}
+            components = { "default" }
         }
     end,
     condition = {

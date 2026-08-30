@@ -41,8 +41,7 @@ M = {
                 vim.notify "Rustacean not enabled"
                 return
             end
-            vim.cmd.RustLsp({ "renderDiagnostic", cycle })
-            vim.cmd.RustLsp({ "renderDiagnostic", current })
+            vim.cmd.RustLsp({ "renderDiagnostic", "cycle" })
         end
         }
     }

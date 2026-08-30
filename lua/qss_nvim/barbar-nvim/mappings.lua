@@ -9,7 +9,7 @@ M = {
         ["<leader>ot"] = { "<cmd> BufferPick<CR>", "Select tab" },
         ["<leader>pt"] = { "<cmd> BufferPin<CR>", "Pin/unpin tab" },
         ["<leader>cct"] = { "<cmd> BufferClose<CR>", "Close tab" },
-        ["<leader>ot"] = { "<cmd> BufferPickDelete<CR>", "Close selected tab" },
+        ["<leader>cst"] = { "<cmd> BufferPickDelete<CR>", "Close selected tab" },
         ["<leader>rt"] = { "<cmd> BufferRestore<CR>", "Reopen closed tab" },
     }
 }

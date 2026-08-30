@@ -1,4 +1,4 @@
-opts = require("qss_nvim.which-key.config")
+local opts = require("qss_nvim.which-key.config")
 
 return
 {

@@ -32,3 +32,4 @@ end
 
 local qss_utils = require("qss_nvim.utils")
 local qss_dap_utils = require("qss_nvim.nvim-dap.utils")
+require("qss_nvim.cmake-tools")

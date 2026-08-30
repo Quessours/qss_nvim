@@ -4,9 +4,9 @@ dap.configurations.rust = {
     {
         name = "Launch default executable",
         type = "codelldb",
+        preLaunchTask = "cargo build",
         request = "launch",
         program = function()
-            vim.fn.jobstart('cargo build')
             local execute = require('qss_nvim.utils').execute_and_capture_output
             local output = execute('find target/debug -name $(basename $(pwd))')
             return output
@@ -21,9 +21,9 @@ dap.configurations.rust = {
     {
         name = "Launch default executable with custom args",
         type = "codelldb",
+        preLaunchTask = "cargo build",
         request = "launch",
         program = function()
-            vim.fn.jobstart('cargo build')
             local execute = require('qss_nvim.utils').execute_and_capture_output
             local output = execute('find target/debug -name $(basename $(pwd))')
             return output
@@ -47,9 +47,9 @@ dap.configurations.rust = {
     {
         name = "Launch an executable",
         type = "codelldb",
+        preLaunchTask = "cargo build",
         request = "launch",
         program = function()
-            vim.fn.jobstart('cargo build')
             return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
         end,
         cwd = "${workspaceFolder}",

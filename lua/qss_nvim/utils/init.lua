@@ -1,4 +1,6 @@
 local merge_tb = vim.tbl_deep_extend
+local nvim_eleven = vim.fn.has('nvim-0.11') == 1
+local validate = vim.validate
 
 local function escape_wildcards(path)
     return path:gsub('([%[%]%?%*])', '\\%1')
@@ -27,7 +29,7 @@ end
 
 M.apply_mappings = function(mappings)
     for mode, mode_values in pairs(mappings) do
-        local default_opts = merge_tb("force", { mode = mode }, mapping_opt or {})
+        local default_opts = { mode = mode }
         for keybind, mapping_info in pairs(mode_values) do
             -- merge default + user opts
             local opts = merge_tb("force", default_opts, mapping_info.opts or {})
@@ -61,7 +63,7 @@ function M.search_ancestors(startpath, func)
     end
 end
 
-local dump_table = function(o)
+local function dump_table(o)
     if type(o) == 'table' then
         local s = '{ '
         for k, v in pairs(o) do
@@ -85,8 +87,12 @@ end
 M.list_linters = list_linters
 
 M.scan_dir = function()
-    local i, t, popen = 0, {}, io.popen
-    local pfile = popen('find -maxdepth 1 -printf "%f\n"')
+    local i, t = 0, {}
+    local pfile = io.popen('find -maxdepth 1 -printf "%f\n"')
+    if not pfile then
+        return t
+    end
+
     for filename in pfile:lines() do
         i = i + 1
         t[i] = filename

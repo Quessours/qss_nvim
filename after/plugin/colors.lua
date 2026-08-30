@@ -1,19 +1,28 @@
+local function set_bg_transparent(group)
+    local hl = vim.api.nvim_get_hl(0, { name = group, link = false })
+    ---@type vim.api.keyset.highlight
+    local spec = vim.tbl_extend("force", hl, { bg = "none", ctermbg = "none" })
+    vim.api.nvim_set_hl(0, group, spec)
+end
+
 function Colorize(color_theme)
     color_theme = color_theme or "focuspoint"
     vim.cmd.colorscheme(color_theme)
 
-    vim.api.nvim_set_hl(0, "Normal", { bg = "none" })
+    set_bg_transparent("Normal")
+    set_bg_transparent("EndOfBuffer")
+    set_bg_transparent("WinSeparator")
+    set_bg_transparent("LineNrAbove")
+    set_bg_transparent("LineNrBelow")
+    set_bg_transparent("TabLine")
+    set_bg_transparent("TabLineFill")
+    set_bg_transparent("TabLineSel")
+
+    vim.api.nvim_set_hl(0, "StatusLine", { bg = "none", ctermbg = "none", fg = "#666666" })
+
     vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none", fg = "NvimLightYellow" })
-    vim.api.nvim_set_hl(0, "EndOfBuffer", { bg = "none" })
-    vim.api.nvim_set_hl(0, "WinSeparator", { bg = "none" })
-    vim.api.nvim_set_hl(0, "LineNrAbove", { bg = "none" })
-    vim.api.nvim_set_hl(0, "LineNrBelow", { bg = "none" })
-    vim.api.nvim_set_hl(0, "TabLine", { bg = "none" })
-    vim.api.nvim_set_hl(0, "TabLineFill", { bg = "none" })
-    vim.api.nvim_set_hl(0, "TabLineSel", { bg = "none" })
     vim.api.nvim_set_hl(0, "LspInlayHint",
         { bg = "none", fg = "#888888", italic = true })
-    --require("qss_nvim.bufferline")
 end
 
 -- TODO : test afterglow, focuspoint, blue

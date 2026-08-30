@@ -38,13 +38,30 @@ local options = {
     }),
     sources = {
         { name = 'path' },
-        { name = 'nvim_lsp' },
+        {
+            name = 'nvim_lsp',
+            entry_filter = function(entry)
+                local source = entry.source.source
+                local client = source and source.client
+                local filter = client and client.config.filter_completion_item
+                if not filter then
+                    return true
+                end
+
+                local keep_item = filter(entry:get_completion_item())
+                return keep_item
+            end,
+        },
         { name = 'buffer',  keyword_length = 3 },
         { name = 'luasnip', keyword_length = 2 },
     },
     preselect = 'item',
     completion = {
         completeopt = 'menu,menuone,noinsert'
+    },
+    performance = {
+        debounce = 20,
+        throttle = 10,
     },
     window = {
         documentation = {
