@@ -10,7 +10,7 @@ return {
     virt_pattern = { "*.go", "*.lua", "*.sh", "*.php", "*.rs", "*.cpp", "*.h", "*.c", "*.sh" }, -- Show virt text only on matched pattern
     border_style = "single",                                                                    -- border style: "single", "double", "rounded"
     hl = {
-        border = "TelescopeBorder",                                                             -- border highlight
+        border = "FloatBorder",                                                             -- border highlight
         cursorline = "guibg=Gray guifg=White",                                                  -- cursorline highlight
     }
 }

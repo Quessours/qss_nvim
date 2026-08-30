@@ -5,6 +5,36 @@ local function set_bg_transparent(group)
     vim.api.nvim_set_hl(0, group, spec)
 end
 
+local accent = {
+    periwinkle = "#9aa7d6",
+    cyan       = "#9acfd6",
+    mauve      = "#d69bb4",
+    grey       = "#8b93a1",
+    text       = "#c8cfdd",
+}
+
+local function set_picker_colors()
+    vim.api.nvim_set_hl(0, "FloatBorder", { bg = "none", fg = accent.periwinkle })
+
+    vim.api.nvim_set_hl(0, "SnacksNormal", { link = "Normal" })
+    vim.api.nvim_set_hl(0, "SnacksNormalNC", { link = "Normal" })
+    vim.api.nvim_set_hl(0, "SnacksTitle", { bg = "none", fg = accent.cyan, bold = true })
+    vim.api.nvim_set_hl(0, "SnacksFooter", { bg = "none", fg = accent.grey })
+
+    for _, group in ipairs({
+        "SnacksPickerDir",
+        "SnacksPickerPathHidden",
+        "SnacksPickerPathIgnored",
+        "SnacksPickerTotals",
+        "SnacksPickerUnselected",
+    }) do
+        vim.api.nvim_set_hl(0, group, { bg = "none", fg = accent.grey })
+    end
+
+    vim.api.nvim_set_hl(0, "SnacksPickerMatch", { bg = "none", fg = accent.mauve, bold = true })
+    vim.api.nvim_set_hl(0, "SnacksPickerPrompt", { bg = "none", fg = accent.cyan })
+end
+
 function Colorize(color_theme)
     color_theme = color_theme or "focuspoint"
     vim.cmd.colorscheme(color_theme)
@@ -20,9 +50,11 @@ function Colorize(color_theme)
 
     vim.api.nvim_set_hl(0, "StatusLine", { bg = "none", ctermbg = "none", fg = "#666666" })
 
-    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none", fg = "NvimLightYellow" })
+    vim.api.nvim_set_hl(0, "NormalFloat", { bg = "none", fg = accent.text })
     vim.api.nvim_set_hl(0, "LspInlayHint",
         { bg = "none", fg = "#888888", italic = true })
+
+    set_picker_colors()
 end
 
 -- TODO : test afterglow, focuspoint, blue

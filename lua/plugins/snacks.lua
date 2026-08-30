@@ -20,7 +20,17 @@ return {
         explorer = { enabled = true },
         indent = { enabled = true },
         input = { enabled = true },
-        picker = { enabled = true },
+        picker = {
+            enabled = true,
+            -- Keeps snacks as the vim.ui.select provider, which is what code
+            -- actions, :CMakeSelect* and :OverseerRun go through.
+            ui_select = true,
+            sources = {
+                files = {
+                    matcher = { frecency = true },
+                },
+            },
+        },
         notifier = { enabled = true, timeout = 3000 },
         quickfile = { enabled = true },
         scope = { enabled = true },

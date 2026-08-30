@@ -1,8 +1,7 @@
 return {
     'crusj/bookmarks.nvim',
     branch = 'main',
-    dependencies = { 'nvim-tree/nvim-web-devicons', 'nvim-telescope/telescope.nvim',
-    },
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
     config = function()
         local config = require("qss_nvim.bookmarks-nvim")
         require("bookmarks").setup(config)

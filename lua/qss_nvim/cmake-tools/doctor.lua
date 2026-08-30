@@ -12,6 +12,11 @@ local M = {}
 ---@field level "ok"|"warn"|"error"
 ---@field text string
 ---@field fix string?
+--- "setup" covers the toolchain, the source tree and the preset selections, all
+--- of which must hold before cmake is invoked at all. "configured" covers what
+--- can only be read out of an already-configured tree, so a caller that is about
+--- to configure from nothing filters those out.
+---@field stage "setup"|"configured"
 
 --- nil when the cond gate in lua/plugins/cmake-tools.lua kept the plugin unloaded.
 ---@return table?
@@ -51,8 +56,9 @@ end
 ---@return qss.cmake.Finding[]
 function M.run()
     local findings = {}
+    local stage = 'setup'
     local function add(level, text, fix)
-        table.insert(findings, { level = level, text = text, fix = fix })
+        table.insert(findings, { level = level, text = text, fix = fix, stage = stage })
     end
 
     local root = vim.fs.normalize(vim.fn.getcwd())
@@ -140,6 +146,8 @@ function M.run()
             end
         end
     end
+
+    stage = 'configured'
 
     local build_dir = cmake_tools.get_build_directory()
     build_dir = build_dir and vim.fs.normalize(tostring(build_dir))
