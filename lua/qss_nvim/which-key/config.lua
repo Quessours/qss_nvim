@@ -1,4 +1,16 @@
+-- Group labels for the prefixes that hold more than one key. which-key v3 reads
+-- these from opts.spec; the leaf mappings themselves keep coming from each
+-- module's mappings.lua through apply_mappings.
 return {
+    spec = {
+        { "<leader>b",  group = "bookmarks" },
+        { "<leader>c",  group = "close tabs" },
+        { "<leader>d",  group = "debug" },
+        { "<leader>f",  group = "find" },
+        { "<leader>g",  group = "git" },
+        { "<leader>gc", group = "conflict" },
+        { "<leader>m",  group = "make" },
+    },
     plugins = {
         marks = true,     -- shows a list of your marks on ' and `
         registers = true, -- shows your registers on " in NORMAL or <C-r> in INSERT mode

@@ -14,7 +14,7 @@ end
 
 --- Preset names as cmake-tools parses them: CMakeUserPresets.json, `include`,
 --- inheritance and hidden presets all resolved.
----@param kind string "configure" or "build"
+---@param kind string "configure", "build" or "test"
 ---@return string[]
 function M.preset_names(kind)
     local ok, presets_module = pcall(require, 'cmake-tools.presets')
@@ -24,15 +24,27 @@ function M.preset_names(kind)
     end
 
     local presets = presets_module:parse(cwd)
+    local names, get
     if kind == 'configure' then
-        return presets:get_configure_preset_names({})
+        names, get = presets:get_configure_preset_names({}), presets.get_configure_preset
+    elseif kind == 'test' then
+        names, get = presets:get_test_preset_names({}), presets.get_test_preset
+    else
+        names, get = presets:get_build_preset_names({}), presets.get_build_preset
     end
-    return presets:get_build_preset_names({})
+
+    -- cmake-tools appends a sentinel preset named "None" (valid = false) to the
+    -- build and test lists, as the "no preset" entry for its own pickers. cmake
+    -- and ctest reject it, so it is never a choice a task can offer.
+    return vim.tbl_filter(function(name)
+        local preset = get(presets, name, {})
+        return preset == nil or preset.valid ~= false
+    end, names)
 end
 
 --- The preset cmake-tools currently has selected, so a task defaults to the one
 --- the :CMake* commands would use rather than to the first in the file.
----@param kind string "configure" or "build"
+---@param kind string "configure", "build" or "test"
 ---@return string?
 function M.selected_preset(kind)
     local cmake_tools = tools()
@@ -41,6 +53,8 @@ function M.selected_preset(kind)
     end
     if kind == 'configure' then
         return cmake_tools.get_configure_preset()
+    elseif kind == 'test' then
+        return cmake_tools.get_test_preset()
     end
     return cmake_tools.get_build_preset()
 end
@@ -59,6 +73,21 @@ function M.build_dir()
     dir = tostring(dir):gsub('%${variant:buildType}', M.build_type())
     dir = dir:gsub('%${[^}]*}', '')
     return (dir:gsub('//+', '/'):gsub('/$', ''))
+end
+
+---@param name string?
+---@return integer?
+function M.test_jobs(name)
+    if not name then
+        return nil
+    end
+    local ok, presets_module = pcall(require, 'cmake-tools.presets')
+    local cwd = vim.uv.cwd()
+    if not ok or not presets_module.exists(cwd) then
+        return nil
+    end
+    local preset = presets_module:parse(cwd):get_test_preset(name, {})
+    return preset and preset.execution and preset.execution.jobs or nil
 end
 
 ---@return string

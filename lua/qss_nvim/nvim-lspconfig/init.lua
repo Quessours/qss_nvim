@@ -4,6 +4,15 @@
 ---@field semantic_token_highlights table<string, table<string, string|vim.api.keyset.highlight>>?
 ---@field filter_completion_item (fun(item: lsp.CompletionItem): boolean)?
 
+if vim.g.qss_format_on_save == nil then
+    vim.g.qss_format_on_save = true
+end
+
+vim.api.nvim_create_user_command('QssFormatOnSave', function()
+    vim.g.qss_format_on_save = not vim.g.qss_format_on_save
+    vim.notify('Format on save ' .. (vim.g.qss_format_on_save and 'enabled' or 'disabled'))
+end, { desc = 'Toggle format on save for this session' })
+
 local function set_hl(group, spec)
     vim.api.nvim_set_hl(0, group, type(spec) == 'string' and { link = spec } or spec)
 end
@@ -52,6 +61,9 @@ vim.api.nvim_create_autocmd('LspAttach', {
                     buffer = event.buf,
                     desc = 'Format with ' .. client.name .. ' before writing',
                     callback = function()
+                        if not vim.g.qss_format_on_save then
+                            return
+                        end
                         vim.lsp.buf.format({ bufnr = event.buf, id = client.id })
                     end,
                 })

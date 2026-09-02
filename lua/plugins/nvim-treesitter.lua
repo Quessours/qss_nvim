@@ -1,5 +1,6 @@
 local M = {
     "nvim-treesitter/nvim-treesitter",
+    branch = "master",
     build = function()
         require("nvim-treesitter.install").update({ with_sync = true })
     end,
@@ -9,6 +10,8 @@ local M = {
                 "bash",       -- bashls (bash, sh)
                 "c",          -- clangd
                 "cpp",        -- clangd
+                "doxygen",    -- injected into /** */, /*! */, /// and //! comments
+                              -- by the c/cpp injection queries
                 "fish",       -- fish_lsp
                 "lua",        -- luals
                 "python",     -- pyright

@@ -25,10 +25,16 @@ return {
         cmake_executor = {
             name = "overseer",
             opts = {
-                new_task_opts = { strategy = "jobstart" },
                 on_new_task = function() end,
             },
         },
-        cmake_runner = { name = "terminal" },
+        cmake_runner = {
+            name = "overseer",
+            opts = {
+                on_new_task = function()
+                    require("overseer").open({ enter = false })
+                end,
+            },
+        },
     },
 }

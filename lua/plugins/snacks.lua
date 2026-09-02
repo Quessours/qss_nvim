@@ -22,8 +22,13 @@ return {
         input = { enabled = true },
         picker = {
             enabled = true,
-            -- Keeps snacks as the vim.ui.select provider, which is what code
-            -- actions, :CMakeSelect* and :OverseerRun go through.
+            actions = {
+                -- Werid conflicts with default confirms when
+                -- using file picker that opens the wrong file when starting to type a path.
+                confirm = require("qss_nvim.snacks.picker").confirm,
+            },
+            -- Allows Overseer and other things like CMakeTools 
+            -- to use the snacks picker as the default
             ui_select = true,
             sources = {
                 files = {

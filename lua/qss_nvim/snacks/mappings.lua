@@ -17,7 +17,7 @@ M = {
         ["<leader>gb"] = { function()
             Snacks.git.blame_line()
         end
-        , "Toggle zen mode" },
+        , "Git blame line" },
 
         -- Pickers. <leader>f is find; the LSP-backed ones live in
         -- qss_nvim/nvim-lspconfig/mappings.lua next to the rest of the LSP keys.

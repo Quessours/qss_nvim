@@ -1,9 +1,5 @@
 -- Preflight checks for a CMake build.
 --
--- cmake-tools' own build() papers over missing setup: it configures silently when
--- the build directory is absent, and pops a vim.ui.select when a preset or a
--- target is unselected. These checks name what is missing instead, each with the
--- command that fixes it.
 local state = require('qss_nvim.cmake-tools.state')
 
 local M = {}
@@ -12,10 +8,6 @@ local M = {}
 ---@field level "ok"|"warn"|"error"
 ---@field text string
 ---@field fix string?
---- "setup" covers the toolchain, the source tree and the preset selections, all
---- of which must hold before cmake is invoked at all. "configured" covers what
---- can only be read out of an already-configured tree, so a caller that is about
---- to configure from nothing filters those out.
 ---@field stage "setup"|"configured"
 
 --- nil when the cond gate in lua/plugins/cmake-tools.lua kept the plugin unloaded.
@@ -25,8 +17,6 @@ local function tools()
     return ok and cmake_tools or nil
 end
 
---- CMakeCache.txt as a KEY -> value table. Entry lines read KEY:TYPE=value; the
---- rest of the file is comments and blanks.
 ---@param path string
 ---@return table<string, string>?
 local function read_cache(path)
@@ -155,9 +145,6 @@ function M.run()
         add('error', 'cmake-tools has no build directory', ':CMakeGenerate  (<leader>mg)')
         return findings
     end
-    -- cmake_build_directory is a template, expanded only once cmake-tools has
-    -- configured the project in this session. Before that cmake would take the
-    -- "out/${variant:buildType}" spelling literally.
     if build_dir:find('%${') then
         add('error', 'the build directory is still the unexpanded ' .. build_dir,
             ':CMakeGenerate  (<leader>mg)')
@@ -172,13 +159,28 @@ function M.run()
     end
     add('ok', 'configured in ' .. build_dir)
 
-    -- A cache alone is not enough for cmake-tools: build() also wants the file
-    -- API reply its own generate() asks for, and quietly reconfigures when it is
-    -- missing -- which is what a tree configured by bare `cmake` looks like.
     local codemodel = cmake_tools.get_config():get_codemodel_targets()
     if codemodel.code ~= 0 then
         add('warn', 'no cmake file-API reply; cmake-tools would reconfigure first',
             ':CMakeGenerate  (<leader>mg)')
+    end
+
+    local configured_type = cache.CMAKE_BUILD_TYPE
+    local selected_type = state.build_type()
+    local multi_config = vim.tbl_contains(
+        { 'Ninja Multi-Config', 'Xcode' }, cache.CMAKE_GENERATOR or '')
+        or (cache.CMAKE_GENERATOR or ''):find('Visual Studio') ~= nil
+    if not is_set(configured_type) then
+        add('ok', multi_config
+            and ('build type: chosen per build by ' .. cache.CMAKE_GENERATOR)
+            or 'build type: no CMAKE_BUILD_TYPE set, so the binary may carry no debug info')
+    elseif configured_type ~= selected_type then
+        add('warn', ('configured %s, but %s is selected'):format(configured_type, selected_type),
+            ':CMakeGenerate  (<leader>mg)')
+    else
+        add('ok', 'build type: ' .. configured_type ..
+            ((configured_type == 'Debug' or configured_type == 'RelWithDebInfo')
+                and '' or ' (not debuggable)'))
     end
 
     local home = cache.CMAKE_HOME_DIRECTORY
@@ -205,8 +207,6 @@ function M.run()
         end
     end
 
-    -- What clangd reads. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 is already forced in
-    -- cmake_generate_options, so a missing file means the configure ran elsewhere.
     if vim.fn.filereadable(build_dir .. '/compile_commands.json') == 1 then
         add('ok', 'compile_commands.json')
     else

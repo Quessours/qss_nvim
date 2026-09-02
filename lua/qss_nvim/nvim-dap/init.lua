@@ -105,6 +105,20 @@ local function configure_exts()
 
     local dap, dapui = require "dap", require "dapui"
     dapui.setup(dapui_setup) -- {} -- use default
+    -- A session wants the room: the overseer task pane is left open by the cmake
+    -- build keys and by a preLaunchTask, and nvim-tree by <leader>e. A `before`
+    -- listener runs ahead of the `after` one below, so both are gone before dapui
+    -- lays itself out.
+    dap.listeners.before.event_initialized["qss_side_panes"] = function()
+        local has_overseer, overseer = pcall(require, "overseer")
+        if has_overseer then
+            overseer.close()
+        end
+        local has_tree, tree = pcall(require, "nvim-tree.api")
+        if has_tree then
+            tree.tree.close()
+        end
+    end
     dap.listeners.after.event_initialized["dapui_config"] = function()
         dapui.open()
     end

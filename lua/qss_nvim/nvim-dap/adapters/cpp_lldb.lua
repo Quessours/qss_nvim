@@ -13,17 +13,33 @@ dap.adapters.codelldb = {
     }
 }
 
--- CMake projects go through :CMakeDebug, which builds the selected launch target
--- and hands dap the resolved binary. This one is the fallback for everything
--- else, so it asks for a path and builds nothing.
+local function launch_program()
+    local ok, cmake = pcall(require, 'cmake-tools')
+    if not (ok and cmake.is_cmake_project()) then
+        return vim.fn.input('Path to executable? ', vim.fn.getcwd() .. '/', 'file')
+    end
+
+    local result = cmake.get_config():get_launch_target()
+    if result.code == 0 then
+        if not cmake.get_config():validate_for_debugging():is_ok() then
+            vim.notify(('%s is built as %s -- expect no symbols. :CMakeSelectConfigurePreset  (<leader>mp)')
+                :format(cmake.get_launch_target(), cmake.get_build_type()),
+                vim.log.levels.WARN, { title = 'DAP' })
+        end
+        return result.data
+    end
+
+    vim.notify(('%s -- :CMakeSelectLaunchTarget  (<leader>ml)'):format(result.message),
+        vim.log.levels.ERROR, { title = 'DAP' })
+    return dap.ABORT
+end
+
 dap.configurations.cpp = {
     {
-        name = "Launch file (no build)",
+        name = "Launch (no build)",
         type = "codelldb",
         request = "launch",
-        program = function()
-            return vim.fn.input('Path to executable? ', vim.fn.getcwd() .. '/', 'file')
-        end,
+        program = launch_program,
         cwd = '${workspaceFolder}',
         stopOnEntry = false,
         sourceLanguages = { "cpp" }

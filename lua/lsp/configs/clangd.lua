@@ -60,4 +60,5 @@ return {
             symbol_info(bufnr, client)
         end, { desc = 'Show symbol info' })
     end,
+    format_on_save = true,
 }

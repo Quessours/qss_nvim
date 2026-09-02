@@ -3,6 +3,14 @@
 local doctor = require('qss_nvim.cmake-tools.doctor')
 local state = require('qss_nvim.cmake-tools.state')
 
+-- :CMakeRunTest builds its own ctest command and accepts no extra arguments, so
+-- this is the only way to keep it from running the suite one test at a time.
+-- Left alone when the environment already sets it.
+if not vim.env.CTEST_PARALLEL_LEVEL then
+    local ok, info = pcall(vim.uv.cpu_info)
+    vim.env.CTEST_PARALLEL_LEVEL = tostring((ok and info and #info > 0) and #info or 1)
+end
+
 local MARKERS = { ok = '✓', warn = '!', error = '✗' }
 local LEVELS = {
     ok = vim.log.levels.INFO,
@@ -37,6 +45,13 @@ local function notify(findings, header)
     vim.notify(table.concat(lines, '\n'), LEVELS[worst(findings)], { title = 'CMake' })
 end
 
+local function show_tasks()
+    local ok, overseer = pcall(require, 'overseer')
+    if ok then
+        overseer.open({ enter = false, direction = 'bottom' })
+    end
+end
+
 ---@param clean boolean run cmake's clean target before building
 local function build(clean)
     local ok, cmake_tools = pcall(require, 'cmake-tools')
@@ -44,10 +59,11 @@ local function build(clean)
         return vim.notify('cmake-tools.nvim is not loaded', vim.log.levels.ERROR,
             { title = 'CMake' })
     end
+    show_tasks()
     cmake_tools.build({ bang = clean, fargs = {} })
 end
 
---- Throw the build directory away and configure and build from nothing.
+--- Throw the build directory away and configure and build from scratch.
 ---
 --- Distinct from :CMakeBuild!, which runs cmake's `clean` target and therefore
 --- keeps CMakeCache.txt -- and a stale cache is usually the reason for wanting
@@ -55,9 +71,7 @@ end
 --- calling its callback when there is no cache, so it cannot be chained.
 ---@param force boolean skip both the setup checks and the confirmation prompt
 local function rebuild(force)
-    -- Only the setup-stage checks: this is about to create the cache, the
-    -- file API reply and compile_commands.json, so reporting them missing would
-    -- block the very command that produces them.
+    -- Only the setup-stage checks
     if not force then
         local blocking = vim.tbl_filter(function(finding)
             return finding.stage == 'setup' and finding.level ~= 'ok'
@@ -76,8 +90,6 @@ local function rebuild(force)
     local root = vim.fs.normalize(vim.fn.getcwd())
     local dir = (vim.fs.normalize(vim.fn.fnamemodify(state.build_dir(), ':p')):gsub('/$', ''))
 
-    -- An in-source configure leaves a CMakeCache.txt in the project root, so the
-    -- cache alone does not make a directory safe to remove.
     if dir == root or dir == '' or dir == '/' then
         return vim.notify(('the build directory resolves to %s; refusing to delete it')
             :format(dir), vim.log.levels.ERROR, { title = 'CMake' })
@@ -100,6 +112,7 @@ local function rebuild(force)
         end
     end
 
+    show_tasks()
     cmake_tools.generate({ bang = false, fargs = {} }, function(result)
         if result:is_ok() then
             cmake_tools.build({ bang = false, fargs = {} })
@@ -116,8 +129,11 @@ vim.api.nvim_create_user_command('CMakeDoctor', function()
 end, { desc = 'Report what CMake setup is missing' })
 
 vim.api.nvim_create_user_command('CMakeBuildChecked', function(opts)
-    local argument = opts.fargs[1]
-    if argument and argument ~= 'clean' then
+    -- Mappings spell this as `<cmd> CMakeBuildChecked clean <CR>`, and with
+    -- nargs='?' the space before <CR> stays inside the argument, so `clean `
+    -- would not compare equal to `clean`.
+    local argument = vim.trim(opts.args)
+    if argument ~= '' and argument ~= 'clean' then
         return vim.notify(("expected `clean` or nothing, got `%s`"):format(argument),
             vim.log.levels.ERROR, { title = 'CMake' })
     end
