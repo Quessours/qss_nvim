@@ -22,7 +22,6 @@ M = {
         ["R"] = { vim.lsp.buf.rename, "Rename symbol" },
         ["<F2>"] = { vim.lsp.buf.rename, "Rename symbol" },
         ["ca"] = { vim.lsp.buf.code_action, "Code action" },
-        ["<F4>"] = { vim.lsp.buf.code_action, "Code action" },
         ["gs"] = { vim.lsp.buf.signature_help, "Signature help" },
         ["th"] = { vim.lsp.buf.typehierarchy, "Type hierarchy" },
         ["<F3>"] = { function() vim.lsp.buf.format({ async = true }) end, "Format buffer" },

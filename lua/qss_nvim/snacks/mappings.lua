@@ -21,7 +21,11 @@ M = {
 
         -- Pickers. <leader>f is find; the LSP-backed ones live in
         -- qss_nvim/nvim-lspconfig/mappings.lua next to the rest of the LSP keys.
-        ["<leader>ff"] = { function() Snacks.picker.files() end, "Find on filesystem" },
+        -- smartcase is on by default, so an uppercase letter in the prompt turns
+        -- the match case sensitive. Turn it off to always ignore case.
+        ["<leader>ff"] = { function()
+            Snacks.picker.files({ matcher = { smartcase = false } })
+        end, "Find on filesystem" },
         ["<leader>fb"] = { function() Snacks.picker.buffers() end, "Find in buffers" },
         -- Open buffers, recent files and a file search in one list, ranked by
         -- frecency. Deliberately a separate key from <leader>ff, which stays a

@@ -45,6 +45,41 @@ vim.api.nvim_create_autocmd('ColorScheme', {
     end,
 })
 
+-- vim.lsp.buf.format waits one second, and a large file in a busy tree needs
+-- more than that: clangd answers slowly while it indexes. On a timeout it
+-- reports "[LSP][clangd] timeout", which does not say that the file went to
+-- disk unformatted, so the request is made here instead.
+local FORMAT_TIMEOUT_MS = 3000
+
+---@param bufnr integer
+---@param client vim.lsp.Client
+local function format_before_write(bufnr, client)
+    local params = vim.api.nvim_buf_call(bufnr, function()
+        return vim.lsp.util.make_formatting_params()
+    end)
+
+    local timeout = vim.g.qss_format_timeout_ms or FORMAT_TIMEOUT_MS
+    local response, err = client:request_sync('textDocument/formatting', params, timeout, bufnr)
+
+    if response and response.result then
+        vim.lsp.util.apply_text_edits(response.result, bufnr, client.offset_encoding)
+        return
+    end
+
+    -- Neither a result nor an error means the server had nothing to change.
+    local failure = err or (response and response.err)
+    if not failure then
+        return
+    end
+
+    local reason = type(failure) == 'table' and (failure.message or vim.inspect(failure))
+        or tostring(failure)
+    local name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ':t')
+    vim.notify(('%s did not format %s: %s. It was written unformatted.')
+        :format(client.name, name, reason), vim.log.levels.WARN,
+        { title = 'Format on save' })
+end
+
 vim.api.nvim_create_autocmd('LspAttach', {
     desc = 'LSP actions',
     callback = function(event)
@@ -64,7 +99,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
                         if not vim.g.qss_format_on_save then
                             return
                         end
-                        vim.lsp.buf.format({ bufnr = event.buf, id = client.id })
+                        format_before_write(event.buf, client)
                     end,
                 })
             end

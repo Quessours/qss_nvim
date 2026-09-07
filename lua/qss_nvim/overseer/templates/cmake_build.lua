@@ -1,4 +1,5 @@
 local cmake = require('qss_nvim.cmake-tools.state')
+local diagnostics = require('qss_nvim.cmake-tools.diagnostics')
 
 --- "all" is what cmake-tools passes when no target is selected.
 ---@return table
@@ -56,10 +57,13 @@ return {
         end
         vim.list_extend(args, cmake.build_options())
 
+        local components = { 'default' }
+        vim.list_extend(components, diagnostics.components())
+
         return {
             cmd = { 'cmake' },
             args = args,
-            components = { 'default' },
+            components = components,
         }
     end,
     condition = {

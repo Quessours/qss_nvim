@@ -135,4 +135,35 @@ M.root_pattern = function(...)
         end
     end
 end
+
+--- A window a source file belongs in: not a float, and holding an ordinary
+--- buffer. A plugin pane such as a task list is a "nofile" buffer and a task
+--- output a "terminal" one, so both fail the test and neither can receive a
+--- jump.
+---@param win integer
+---@return boolean
+M.is_editor_window = function(win)
+    if vim.api.nvim_win_get_config(win).relative ~= '' then
+        return false
+    end
+    local buf = vim.api.nvim_win_get_buf(win)
+    return vim.bo[buf].buftype == ''
+end
+
+--- The window a jump lands in: the one visited before the current one when it
+--- still qualifies, otherwise the first editor window on the tab page.
+---@return integer? win
+M.main_window = function()
+    local previous = vim.fn.win_getid(vim.fn.winnr('#'))
+    if previous ~= 0 and M.is_editor_window(previous) then
+        return previous
+    end
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+        if M.is_editor_window(win) then
+            return win
+        end
+    end
+    return nil
+end
+
 return M

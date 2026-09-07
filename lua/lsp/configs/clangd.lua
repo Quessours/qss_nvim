@@ -56,6 +56,10 @@ return {
             switch_source_header(bufnr, client)
         end, { desc = 'Switch between source/header' })
 
+        vim.keymap.set('n', '<F4>', function()
+            switch_source_header(bufnr, client)
+        end, { buffer = bufnr, desc = 'Switch between source/header' })
+
         vim.api.nvim_buf_create_user_command(bufnr, 'LspClangdShowSymbolInfo', function()
             symbol_info(bufnr, client)
         end, { desc = 'Show symbol info' })
