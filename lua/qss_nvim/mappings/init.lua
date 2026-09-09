@@ -13,5 +13,8 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.snacks.mappi
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.git-conflict-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cmake-tools.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.overseer.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qt-class.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qt-property.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cpp-impl.mappings"))
 
 require('qss_nvim.utils').apply_mappings(mappings)

@@ -11,7 +11,9 @@ local function border(hl_name)
     }
 end
 
+local client_priority = require('qss_nvim.nvim-cmp.client_priority')
 local cmp = require('cmp')
+
 local options = {
     snippet = {
         expand = function(args)
@@ -54,6 +56,20 @@ local options = {
         },
         { name = 'buffer',  keyword_length = 3 },
         { name = 'luasnip', keyword_length = 2 },
+    },
+    sorting = {
+        comparators = {
+            client_priority.compare,
+            cmp.config.compare.offset,
+            cmp.config.compare.exact,
+            cmp.config.compare.score,
+            cmp.config.compare.recently_used,
+            cmp.config.compare.locality,
+            cmp.config.compare.kind,
+            cmp.config.compare.sort_text,
+            cmp.config.compare.length,
+            cmp.config.compare.order,
+        },
     },
     preselect = 'item',
     completion = {

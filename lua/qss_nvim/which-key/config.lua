@@ -10,6 +10,7 @@ return {
         { "<leader>g",  group = "git" },
         { "<leader>gc", group = "conflict" },
         { "<leader>m",  group = "make" },
+        { "<leader>n",  group = "new" },
     },
     plugins = {
         marks = true,     -- shows a list of your marks on ' and `

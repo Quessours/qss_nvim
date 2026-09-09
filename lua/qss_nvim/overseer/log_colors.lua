@@ -118,6 +118,101 @@ end
 -- Exposed so a line can be checked against the rules without running a task.
 M.level_of = level_of
 
+local ns = vim.api.nvim_create_namespace('qss_log_colors')
+
+--- Width the terminal was last seen wrapping at, per buffer, for the stretches
+--- when a task runs with no window on its output.
+---@type table<integer, integer>
+local last_width = {}
+
+---@param bufnr integer
+---@return number width at which a row is a wrap, or math.huge when none wraps
+local function wrap_width(bufnr)
+    if vim.bo[bufnr].buftype ~= 'terminal' then
+        return math.huge
+    end
+    local windows = vim.fn.win_findbuf(bufnr)
+    if windows[1] then
+        local window = vim.fn.getwininfo(windows[1])[1]
+        if window then
+            last_width[bufnr] = window.width - window.textoff
+        end
+    end
+    if last_width[bufnr] then
+        return last_width[bufnr]
+    end
+    return vim.o.columns
+end
+
+---@param bufnr integer
+---@param row integer
+---@return string|nil highlight group the row already carries
+local function marked_level(bufnr, row)
+    local marks = vim.api.nvim_buf_get_extmarks(bufnr, ns, { row, 0 }, { row, -1 },
+        { details = true, limit = 1 })
+    if not marks[1] then
+        return nil
+    end
+    return marks[1][4].hl_group
+end
+
+--- Colors the rows the terminal just wrote, reflowed or scrolled.
+---@param bufnr integer
+---@param first integer first changed row
+---@param last integer row after the last changed row
+local function recolor(bufnr, first, last)
+    local width = wrap_width(bufnr)
+    local lines = vim.api.nvim_buf_get_lines(bufnr, first, last, false)
+
+    local carry
+    if first > 0 then
+        local above = vim.api.nvim_buf_get_lines(bufnr, first - 1, first, false)[1]
+        if above and vim.api.nvim_strwidth(above) >= width then
+            carry = marked_level(bufnr, first - 1)
+        end
+    end
+
+    vim.api.nvim_buf_clear_namespace(bufnr, ns, first, last)
+    for index, line in ipairs(lines) do
+        local hl = level_of(line) or carry
+        if hl and line ~= '' then
+            vim.api.nvim_buf_set_extmark(bufnr, ns, first + index - 1, 0, {
+                end_col = #line,
+                hl_group = hl,
+            })
+        end
+        if vim.api.nvim_strwidth(line) >= width then
+            carry = hl
+        else
+            carry = nil
+        end
+    end
+end
+
+---@type table<integer, true>
+local attached = {}
+
+---@param bufnr integer
+local function attach(bufnr)
+    if attached[bufnr] then
+        return
+    end
+    attached[bufnr] = true
+    recolor(bufnr, 0, vim.api.nvim_buf_line_count(bufnr))
+    vim.api.nvim_buf_attach(bufnr, false, {
+        on_lines = function(_, buf, _, first, _, new_last)
+            if not vim.api.nvim_buf_is_valid(buf) then
+                return true
+            end
+            recolor(buf, first, new_last)
+        end,
+        on_detach = function(_, buf)
+            attached[buf] = nil
+            last_width[buf] = nil
+        end,
+    })
+end
+
 local function define_highlights()
     for group, color in pairs(HL) do
         vim.api.nvim_set_hl(0, group, { fg = color, default = true })
@@ -142,27 +237,11 @@ function M.setup()
         callback = define_highlights,
     })
 
-    local ns = vim.api.nvim_create_namespace('qss_log_colors')
-    vim.api.nvim_set_decoration_provider(ns, {
-        -- Returning false keeps on_line out of every other buffer being drawn.
-        -- b:overseer_task is set on task output buffers only.
-        on_win = function(_, _, bufnr)
-            return vim.b[bufnr].overseer_task ~= nil
-        end,
-        on_line = function(_, _, bufnr, row)
-            local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1]
-            if not line or line == '' then
-                return
-            end
-            local hl = level_of(line)
-            if not hl then
-                return
-            end
-            vim.api.nvim_buf_set_extmark(bufnr, ns, row, 0, {
-                end_col = #line,
-                hl_group = hl,
-                ephemeral = true,
-            })
+    vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'OverseerOutput',
+        desc = 'Color the log levels in the output of a task',
+        callback = function(args)
+            attach(args.buf)
         end,
     })
 end
