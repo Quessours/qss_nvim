@@ -1,0 +1,308 @@
+*jira.txt*	Jira inside Neovim
+
+			   JIRA FOR NEOVIM
+
+A Jira client built on jira-cli, the Jira REST API and Tempo, drawn with
+snacks.picker.  Everything it shows is a buffer, and every buffer answers to
+one gesture.
+
+1. Setting up			|jira-setup|
+2. One gesture			|jira-gesture|
+3. Addresses			|jira-addresses|
+4. Views			|jira-views|
+5. Keys				|jira-keys|
+6. Commands			|jira-commands|
+7. Editing a field		|jira-fields|
+8. Rich text			|jira-rich-text|
+9. Links			|jira-links|
+10. Tempo			|jira-tempo|
+11. Options			|jira-options|
+12. When something is wrong	|jira-trouble|
+
+==============================================================================
+1. Setting up					*jira-setup*
+
+Two tokens have to be exported, not merely set.  In fish, `set NAME value`
+creates a variable no child process ever sees: >
+
+	set -gx JIRA_API_TOKEN "..."
+	set -gx TEMPO_API_TOKEN "..."
+<
+The first comes from id.atlassian.com, the second from the Tempo API
+integration page.  jira-cli must be installed and `jira init` must have run.
+
+Then: >
+
+	:checkhealth qss_nvim.jira
+<
+It reports on jira-cli, curl, both tokens, the instance and snacks.
+
+==============================================================================
+2. One gesture					*jira-gesture*
+
+`i` and <CR> mean the same thing in every Jira buffer: act on what the cursor
+is on.  A line that is none of the things below opens the whole issue menu,
+rather than reporting that there is nothing here.
+
+	line			what opens ~
+	the title of a ticket	every action on that issue
+	a field row		the prompt that field takes
+	the description		the markdown buffer
+	the Links heading	the relation picker
+	a link row		go to it, cut it, add one
+	the Comments heading	a new comment
+	a comment		edit it, delete it, add another
+	a row in a list view	every action on that issue
+
+						*jira-context*
+Which issue a <leader>j key acts on, in order:
+
+	1. the issue key under the cursor
+	2. the issue a link row names, from anywhere on that row
+	3. the issue this buffer shows
+	4. the issue named in the current branch
+	5. otherwise a picker opens
+
+The cursor comes first so that reading one ticket and acting on another it
+mentions needs nothing but pointing at it.  Every prompt names the issue it
+will change, so the choice is visible before anything is written.
+
+==============================================================================
+3. Addresses					*jira-addresses*
+
+Every view has a name, and opening the name opens the view: >
+
+	:edit jira://LIS-1234
+	:edit jira://board
+	:edit jira://backlog
+	:edit jira://sprint
+	:edit jira://sprint/3973
+	:edit jira://tempo
+<
+Because these are names, |gf| works on them, so does a quickfix entry, a
+session being restored, and `:bufdo`.  In a buffer of filetype `jira`, |gf| on
+a bare issue key such as `LIS-1234` resolves to its address.
+
+==============================================================================
+4. Views					*jira-views*
+
+jira://KEY		One issue.  Every field on its own line.
+jira://board		The running sprint, in the board's own columns.
+jira://backlog		The backlog of the board, in rank order, read whole.
+jira://sprint		The sprint report and an ASCII burndown.
+jira://tempo		The week you logged, drawn.  See |jira-timesheet|.
+
+All four have filetype `jira` and are parsed as markdown.
+
+==============================================================================
+5. Keys						*jira-keys*
+
+Outside a Jira buffer, under <leader>j: >
+
+	jcs	the current sprint board
+	jS	show a sprint report
+	jB	the backlog
+	jmt	my tickets in the sprint
+	jE	epics
+	jp	project issues, unresolved
+	jT	the timesheet of this week
+
+	jf	find an issue by key or by words
+	jq	run a JQL query
+	jQ	re-run a query already used
+	jv	view the issue in context
+	jW	open it in the browser
+
+	jsw	start working on an issue
+	jmi	move the issue to another state
+	jac	add a comment
+	jat	add a ticket
+	jas	assign the issue to anyone
+	jF	the fields of the issue
+	jL	the labels of the issue
+	jw	log work in Tempo
+	jr	reload the issue view
+<
+Inside a Jira buffer: >
+
+	i or <CR>	act on the line under the cursor
+	gd or <C-]>	go to the issue on this line
+	<C-t>		back to the issue you came from
+	q		close the view
+<
+In a list view, also: >
+
+	e or v		open the issue
+	t		transition it
+	o		open it in the browser
+	y		yank its key
+	r		reload
+<
+In a picker: >
+
+	<C-y>	yank the key		<C-s>	start work
+	<C-t>	transition		<C-r>	drop the cache and reload
+	<C-q>	send to the quickfix list
+<
+						*jira-quickfix*
+<C-q> puts the issues into the |quickfix| list as jira:// addresses, so
+|:cnext| opens the next ticket rather than only naming it, and the list
+outlives the picker.  With nothing selected it takes everything shown.
+
+==============================================================================
+6. Commands					*jira-commands*
+
+:JiraBoard		the running sprint board
+:JiraBacklog		the backlog
+:JiraBacklogSearch	fuzzy find in the backlog
+:JiraSprint		report and burndown of the running sprint
+:JiraSprintPick		report of any sprint
+:JiraIssues		my tickets in the sprint
+:JiraProject		every unresolved issue
+:JiraEpics		the epics
+:JiraGoto {key}		open an issue by key
+:JiraView {key}		read an issue in a buffer
+:JiraOpen {key}		open an issue in the browser
+:JiraJql {query}	run a JQL query
+:JiraQuickfix {query}	run a query, then <C-q> for the quickfix list
+:JiraStart {key}	assign, move and branch to start work
+:JiraCreate		create an issue
+:JiraLink		links of an issue: follow, cut, add
+:JiraFields		the fields of an issue
+:JiraLog		log work in Tempo
+:JiraWeek		the timesheet of this week
+:JiraCacheClear		forget every answer Jira gave
+
+`JiraGoto`, `JiraView`, `JiraOpen` and `JiraStart` complete from the keys
+already listed this session.
+
+==============================================================================
+7. Editing a field				*jira-fields*
+
+The list of fields comes from Jira's `editmeta`, so it is what Jira accepts on
+that issue right now.  The prompt matches the field:
+
+	an option		a picker of its real allowed values
+	a user			a picker of who can be assigned
+	rich text		a markdown buffer
+	a number or a date	a plain prompt
+	the status		the transition picker
+
+Writes go by field id through the REST API, never by field name, because this
+instance has fields sharing a name.
+
+						*jira-hidden-fields*
+`hidden_fields` in the options leaves out the fields that belong to another
+team.  See |jira-options|.
+
+==============================================================================
+8. Rich text					*jira-rich-text*
+
+Jira stores a description as a tree of typed nodes.  Editing it as markdown
+means converting both ways.
+
+Panels and task lists are real markdown in both directions.  A block markdown
+cannot write becomes a comment line, is kept aside, and is put back exactly
+where that line ended up on save.  Saving is gated on a proven round trip:
+render it, read it back, compare.  Nothing is lost, or the edit does not open.
+
+						*jira-slash*
+In a Jira edit buffer, `/` completes: >
+
+	/info /note /tip /success /warning /error
+	/task /done /code /quote /rule
+<
+`/success` writes a success panel.  The canonical form is the alert block
+`> [!SUCCESS]`, which other markdown renderers understand.
+
+<C-s> sends the buffer.  `q` drops it.
+
+==============================================================================
+9. Links					*jira-links*
+
+The ticket buffer lists its links under `## Links`, phrased from its own side.
+`i` on a link row goes to the other issue, cuts the link, or adds one.  `gd`
+on the row goes straight there, and <C-t> comes back.
+
+All relations the instance defines are offered, each in both directions.
+
+==============================================================================
+10. Tempo					*jira-tempo*
+
+Tempo is a separate product with its own API and its own token.  On Jira Cloud
+its worklogs and the native Jira worklogs are two different stores, and only
+Tempo feeds the timesheet.
+
+<leader>jw asks for the time spent, the date, the start time and a
+description.  Time spent takes `1d 2h 30m`, `1h30`, or a bare number of
+minutes.
+
+						*jira-timesheet*
+<leader>jT draws the week at `jira://tempo`: a bar per day against the working
+day, the week against the week, and every issue ranked by the time it took.
+A day that is short says by how much. >
+
+	Mon 09 Nov  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0m  −7h
+	Wed 11 Nov                                        0m  holiday
+	Sat 14 Nov                                        0m  weekend
+
+	week        ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░    0m  of 28h
+<
+						*jira-holidays*
+What a day asks for is read from Tempo, not counted here.  Tempo knows the
+working pattern and the public holidays, so a holiday asks for nothing, says
+so, and leaves the week asking for four days instead of five.  A part-time or
+irregular week is handled the same way, because it is the same answer.
+
+`daily_hours` is only the fallback for when Tempo will not answer.
+In that buffer: >
+
+	i or <CR>	on a day, log against it
+			on an issue, open it
+			on an entry, delete it
+	gd		go to the issue on this line
+	<		the week before
+	>		the week after
+	.		this week
+	r		reload
+<
+`daily_hours` in the options is what a full day counts as.  See
+|jira-options|.
+
+`:JiraWeekList` still gives the old flat list.
+
+==============================================================================
+11. Options					*jira-options*
+
+In `lua/qss_nvim/jira/config.lua`, under `M.options`:
+
+	cache_ttl		how long a list is kept, in seconds
+	branch_prefix		what a start-work branch is called
+	start_work_transition	the status start-work moves to
+	start_work_steps	assign, sprint, transition, branch, yank,
+				each on or off
+	commit_prefix		prefill an empty commit message with the key
+	hidden_fields		fields never worth a line, by name
+	tempo_url		the Tempo API address
+	daily_hours		the fallback when Tempo will not give the
+				schedule; normally unused, see |jira-holidays|
+
+Everything else comes from jira-cli's own configuration, so there is nothing
+to keep in step.
+
+==============================================================================
+12. When something is wrong			*jira-trouble*
+
+Run |:checkhealth| `qss_nvim.jira` first.  It names the usual causes.
+
+A token that is set but not exported is the most common one: a child process
+sees nothing, so jira-cli reports no token at all.
+
+`:JiraCacheClear` forgets every answer, which is the fix when a list shows
+something that has since changed elsewhere.
+
+A field that refuses to open reports why.  A description that cannot survive
+a trip through markdown says so and points at the browser, rather than
+writing something lossy.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

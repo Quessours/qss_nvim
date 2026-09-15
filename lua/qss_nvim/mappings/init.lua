@@ -19,5 +19,6 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qt-property.
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cpp-impl.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.persistence-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.flash-nvim.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.jira.mappings"))
 
 require('qss_nvim.utils').apply_mappings(mappings)
