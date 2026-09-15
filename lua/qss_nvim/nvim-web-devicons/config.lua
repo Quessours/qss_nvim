@@ -8,7 +8,7 @@ local config = {
     }
 }
 
-M = {}
+local M = {}
 M.config = config
 
 return M

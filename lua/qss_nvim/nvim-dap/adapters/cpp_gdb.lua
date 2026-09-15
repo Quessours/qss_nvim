@@ -1,4 +1,4 @@
-dap = require('dap')
+local dap = require('dap')
 dap.adapters.cppdbg = {
     name = 'cppdbg',
     type = 'executable',

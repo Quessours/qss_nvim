@@ -50,6 +50,9 @@ local function get_show()
     return vim.tbl_extend('force', default_show, provider_config.show or {})
 end
 
+---@param node TSNode?
+---@param bufnr (integer|string) Buffer or string from which the {node} is extracted
+---@return string? # nil when {node} is nil
 local function text_of(node, bufnr)
     if not node then
         return nil
@@ -176,8 +179,9 @@ function handle_object(node, bufnr, show, out)
         vim.list_extend(out, children)
         return
     end
+    local type_text = vim.treesitter.get_node_text(type_name, bufnr)
     emit(out, show.objects, symbol(
-        text_of(type_name, bufnr),
+        type_text,
         'Class',
         type_name,
         node,
@@ -197,8 +201,9 @@ local function handle_inline_component(node, bufnr, show, out)
         return
     end
     local inner_type = inner and text_of(field(inner, 'type_name'), bufnr) or nil
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     emit(out, show.components,
-        symbol(text_of(name, bufnr), 'Component', name, node, inner_type), children)
+        symbol(name_text, 'Component', name, node, inner_type), children)
 end
 
 local function handle_enum(node, bufnr, show, out)
@@ -207,15 +212,17 @@ local function handle_enum(node, bufnr, show, out)
     local members = {}
     if body and show.enum_members then
         for _, member in ipairs(body:field('name')) do
+            local member_text = vim.treesitter.get_node_text(member, bufnr)
             table.insert(members,
-                symbol(text_of(member, bufnr), 'EnumMember', member, member, nil))
+                symbol(member_text, 'EnumMember', member, member, nil))
         end
     end
     if not name then
         vim.list_extend(out, members)
         return
     end
-    emit(out, show.enums, symbol(text_of(name, bufnr), 'Enum', name, node, nil), members)
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
+    emit(out, show.enums, symbol(name_text, 'Enum', name, node, nil), members)
 end
 
 local function handle_property(node, bufnr, show, out)
@@ -232,8 +239,9 @@ local function handle_property(node, bufnr, show, out)
         detail = modifier
     end
     local children = objects_in_value(field(node, 'value'), bufnr, show)
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     emit(out, show.properties,
-        symbol(text_of(name, bufnr), 'Property', name, node, detail), children or {})
+        symbol(name_text, 'Property', name, node, detail), children or {})
 end
 
 local function handle_signal(node, bufnr, show, out)
@@ -250,8 +258,9 @@ local function handle_signal(node, bufnr, show, out)
             end
         end
     end
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     emit(out, show.signals, symbol(
-        text_of(name, bufnr),
+        name_text,
         'Event',
         name,
         node,
@@ -264,8 +273,9 @@ local function handle_function(node, bufnr, show, out)
     if not name then
         return
     end
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     emit(out, show.functions, symbol(
-        text_of(name, bufnr),
+        name_text,
         'Function',
         name,
         node,
@@ -281,7 +291,7 @@ local function handle_binding(node, bufnr, show, out)
     if not name then
         return
     end
-    local name_text = text_of(name, bufnr)
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     -- Consumed by handle_object as the parent's detail.
     if name_text == 'id' then
         return
@@ -319,8 +329,9 @@ local function handle_import(node, bufnr, show, out)
     else
         detail = text_of(field(node, 'version'), bufnr)
     end
+    local source_text = vim.treesitter.get_node_text(source, bufnr)
     emit(out, show.imports,
-        symbol(text_of(source, bufnr), 'Module', source, node, detail), {})
+        symbol(source_text, 'Module', source, node, detail), {})
 end
 
 local function handle_pragma(node, bufnr, show, out)
@@ -328,8 +339,9 @@ local function handle_pragma(node, bufnr, show, out)
     if not name then
         return
     end
+    local name_text = vim.treesitter.get_node_text(name, bufnr)
     emit(out, show.pragmas, symbol(
-        text_of(name, bufnr),
+        name_text,
         'Key',
         name,
         node,

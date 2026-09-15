@@ -1,4 +1,4 @@
-M = {
+local M = {
     n = {
         ["<leader>af"] = { vim.lsp.buf.format, "Autoformat" },
         ["gb"] = { "<C-O>", "Go back" },

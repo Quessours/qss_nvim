@@ -1,4 +1,4 @@
-M = { n = {
+local M = { n = {
     -- toggle
     ["<C-n>"] = { "<cmd> NvimTreeToggle <CR>", "toggle nvimtree" },
 

@@ -1,10 +1,10 @@
 require("qss_nvim.nvim-dap.default_mappings")
 
 local isRustaceanEnabled = function()
-    return vim.cmd.RustLsp ~= nil
+    return vim.fn.exists(':RustLsp') == 2
 end
 
-M = {
+local M = {
     n = {
         ["<leader>oc"] = { function()
             if not isRustaceanEnabled() then
@@ -20,7 +20,6 @@ M = {
                     vim.notify "Rustacean not enabled"
                     return
                 end
-                local bufnr = vim.api.nvim_get_current_buf()
                 vim.cmd.RustLsp('codeAction') -- supports rust-analyzer's grouping
                 --{ silent = true, buffer = bufnr }
                 -- or vim.lsp.buf.codeAction() if you don't want grouping.
@@ -32,7 +31,6 @@ M = {
                 return
             end
             vim.cmd.RustLsp { 'hover', 'actions' }
-            vim.cmd.RustLsp { 'hover', 'actions' }
         end,
             "Rust Hover actions"
         },
@@ -42,7 +40,8 @@ M = {
                 return
             end
             vim.cmd.RustLsp({ "renderDiagnostic", "cycle" })
-        end
+        end,
+            "Cycle rendered diagnostic"
         }
     }
 

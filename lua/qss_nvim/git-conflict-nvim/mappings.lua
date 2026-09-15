@@ -1,4 +1,4 @@
-M = {
+local M = {
     n = {
         ["<leader>gco"] = { "<cmd> GitConflictChooseOurs <CR>", "Choose our diff for conflict" },
         ["<leader>gct"] = { "<cmd> GitConflictChooseTheirs <CR>", "Choose their diff for conflict" },

@@ -36,6 +36,8 @@ return {
                 },
             },
         },
+        -- noice routes notifications into this notifier through its snacks
+        -- backend, so it must stay on. See lua/plugins/noice.lua.
         notifier = { enabled = true, timeout = 3000 },
         quickfile = { enabled = true },
         scope = { enabled = true },

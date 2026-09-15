@@ -5,7 +5,7 @@
 -- Navigation goes through snacks.picker rather than vim.lsp.buf: the built-ins
 -- push their results straight into the quickfix list, which in a Qt or C++ tree
 -- means scrolling a flat list of dozens of hits with no preview and no filter.
-M = {
+local M = {
     n = {
         ["gd"] = { function() Snacks.picker.lsp_definitions() end, "Go to definition" },
         ["gD"] = { function() Snacks.picker.lsp_declarations() end, "Go to declaration" },

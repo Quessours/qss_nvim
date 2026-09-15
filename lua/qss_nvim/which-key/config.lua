@@ -9,8 +9,10 @@ return {
         { "<leader>f",  group = "find" },
         { "<leader>g",  group = "git" },
         { "<leader>gc", group = "conflict" },
+        { "<leader>gh", group = "hunks" },
         { "<leader>m",  group = "make" },
         { "<leader>n",  group = "new" },
+        { "<leader>S",  group = "session" },
     },
     plugins = {
         marks = true,     -- shows a list of your marks on ' and `

@@ -1,15 +1,8 @@
-local M = {
+return {
     "mfussenegger/nvim-lint",
     event = "BufReadPre",
     lazy = true,
     config = function()
-        vim.api.nvim_create_autocmd({ "BufWritePost", "BufReadPost" }, {
-            callback = function()
-                require("lint").try_lint()
-            end,
-        })
+        require("qss_nvim.nvim-lint")
     end,
 }
-
---return M
-return M

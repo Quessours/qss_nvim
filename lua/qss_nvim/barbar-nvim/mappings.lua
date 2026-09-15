@@ -1,4 +1,4 @@
-M = {
+local M = {
     n = {
         ["<TAB>"] = { "<cmd> BufferNext<CR>", "Go to next tab" },
         ["<S-TAB>"] = { "<cmd> BufferPrevious<CR>", "Go to previous tab" },

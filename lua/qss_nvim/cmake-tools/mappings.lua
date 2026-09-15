@@ -1,4 +1,4 @@
-M = {
+local M = {
     n = {
         ["<leader>mg"] = { "<cmd> CMakeGenerate <CR>", "CMake configure" },
         ["<leader>mb"] = { "<cmd> CMakeBuildChecked <CR>", "CMake build (checked)" },

@@ -1,3 +1,9 @@
+-- Change this one line to switch theme. Every name shipped by tokyonight
+-- ("tokyonight-night", "tokyonight-storm", "tokyonight-moon", "tokyonight-day")
+-- and every name shipped by awesome-vim-colorschemes ("focuspoint",
+-- "afterglow", "blue"...) is valid here.
+local color_theme = "tokyonight-night"
+
 local function set_bg_transparent(group)
     local hl = vim.api.nvim_get_hl(0, { name = group, link = false })
     ---@type vim.api.keyset.highlight
@@ -35,9 +41,8 @@ local function set_picker_colors()
     vim.api.nvim_set_hl(0, "SnacksPickerPrompt", { bg = "none", fg = accent.cyan })
 end
 
-function Colorize(color_theme)
-    color_theme = color_theme or "focuspoint"
-    vim.cmd.colorscheme(color_theme)
+function Colorize(theme)
+    vim.cmd.colorscheme(theme or color_theme)
 
     set_bg_transparent("Normal")
     set_bg_transparent("EndOfBuffer")
@@ -57,5 +62,4 @@ function Colorize(color_theme)
     set_picker_colors()
 end
 
--- TODO : test afterglow, focuspoint, blue
-Colorize("focuspoint")
+Colorize(color_theme)

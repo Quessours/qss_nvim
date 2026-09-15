@@ -11,10 +11,13 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.hex-nvim.map
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.mappings.core"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.snacks.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.git-conflict-nvim.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.gitsigns-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cmake-tools.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.overseer.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qt-class.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qt-property.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cpp-impl.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.persistence-nvim.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.flash-nvim.mappings"))
 
 require('qss_nvim.utils').apply_mappings(mappings)

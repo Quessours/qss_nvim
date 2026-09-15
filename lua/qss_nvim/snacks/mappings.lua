@@ -1,6 +1,6 @@
 local picker = require("qss_nvim.snacks.picker")
 
-M = {
+local M = {
     n = {
         ["<leader>dm"] = { function()
             if Snacks.dim.enabled then

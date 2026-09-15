@@ -1,46 +1,20 @@
-local extension_path = vim.fn.stdpath("data") .. "/mason/packages/codelldb/extension"
-local codelldb_path = extension_path .. 'adapter/codelldb'
-local liblldb_path = extension_path .. 'lldb/lib/liblldb.so'
-
 local opts = {
     tools = {
         -- rustacean-nvim options
 
         -- callback to execute once rust-analyzer is done initializing the workspace
         -- The callback receives one parameter indicating the `health` of the server: "ok" | "warning" | "error"
-        on_initialized = function()
-            vim.notify("Rust-initializer ok")
+        on_initialized = function(status)
+            local level = vim.log.levels.INFO
+            if status.health ~= 'ok' then
+                level = vim.log.levels.WARN
+            end
+            vim.notify(('rust-analyzer: %s'):format(status.health), level)
         end,
         -- automatically call RustReloadWorkspace when writing to a Cargo.toml file.
         reload_workspace_from_cargo_toml = true,
-        -- These apply to the default RustSetInlayHints command
-        inlay_hints = {
-            -- automatically set inlay hints (type hints)
-            -- default: true
-            auto = true,
-            -- Only show inlay hints for the current line
-            only_current_line = false,
-            -- whether to show parameter hints with the inlay hints or not
-            -- default: true
-            show_parameter_hints = true,
-            -- prefix for parameter hints
-            -- default: "<-"
-            parameter_hints_prefix = "<- ",
-            -- prefix for all the other hints (type, chaining)
-            -- default: "=>"
-            other_hints_prefix = "=> ",
-            -- whether to align to the length of the longest line in the file
-            max_len_align = false,
-            -- padding from the left if max_len_align is true
-            max_len_align_padding = 1,
-            -- whether to align to the extreme right or not
-            right_align = false,
-            -- padding from the right if right_align is true
-            right_align_padding = 7,
-            -- The color of the hints
-            highlight = "Comment",
-        },
         float_win_config = {
+            auto_focus = true,
             border = {
                 { "╭", "FloatBorder" },
                 { "─", "FloatBorder" },
@@ -51,18 +25,6 @@ local opts = {
                 { "╰", "FloatBorder" },
                 { "│", "FloatBorder" },
             },
-        },
-        -- options same as lsp hover / vim.lsp.util.open_floating_preview()
-        hover_actions = {
-            -- the border that is used for the hover window
-            -- see vim.api.nvim_open_win()
-            -- Maximal width of the hover window. Nil means no max.
-            max_width = 10,
-            -- Maximal height of the hover window. Nil means no max.
-            max_height = 5,
-            -- whether the hover action window gets automatically focused
-            -- default: false
-            auto_focus = false,
         },
         -- settings for showing the crate graph based on graphviz and the dot
         -- command
@@ -79,89 +41,31 @@ local opts = {
             -- crates
             -- default: true
             full = true,
-            -- List of backends found on: https://graphviz.org/docs/outputs/
-            -- Is used for input validation and autocompletion
-            -- Last updated: 2021-08-26
-            enabled_graphviz_backends = {
-                "bmp",
-                "cgimage",
-                "canon",
-                "dot",
-                "gv",
-                "xdot",
-                "xdot1.2",
-                "xdot1.4",
-                "eps",
-                "exr",
-                "fig",
-                "gd",
-                "gd2",
-                "gif",
-                "gtk",
-                "ico",
-                "cmap",
-                "ismap",
-                "imap",
-                "cmapx",
-                "imap_np",
-                "cmapx_np",
-                "jpg",
-                "jpeg",
-                "jpe",
-                "jp2",
-                "json",
-                "json0",
-                "dot_json",
-                "xdot_json",
-                "pdf",
-                "pic",
-                "pct",
-                "pict",
-                "plain",
-                "plain-ext",
-                "png",
-                "pov",
-                "ps",
-                "ps2",
-                "psd",
-                "sgi",
-                "svg",
-                "svgz",
-                "tga",
-                "tiff",
-                "tif",
-                "tk",
-                "vml",
-                "vmlz",
-                "wbmp",
-                "webp",
-                "xlib",
-                "x11",
-            },
         },
     },
     server = {
-        on_attach = function(_)
+        -- read by the LspAttach hook of lua/qss_nvim/nvim-lspconfig/init.lua
+        format_on_save = true,
+        default_settings = {
+            ['rust-analyzer'] = {
+                cargo = { allFeatures = true },
+                checkOnSave = true,
+            },
+        },
+        on_attach = function(_, bufnr)
             local apply_mappings = require("qss_nvim.utils").apply_mappings
             local mappings = require("qss_nvim.rustacean-nvim.mappings")
             assert(mappings ~= nil)
-            apply_mappings(mappings)
+            local buffer_local = vim.deepcopy(mappings)
+            for _, mode_values in pairs(buffer_local) do
+                for _, mapping_info in pairs(mode_values) do
+                    mapping_info.opts = vim.tbl_extend("keep", mapping_info.opts or {},
+                        { buffer = bufnr })
+                end
+            end
+            apply_mappings(buffer_local)
         end,
     },
-    enable_nextest = true,
-    init_options = {
-        userLanguages = {
-            rust = "html"
-        }
-    }
-    -- debugging stuff
-    --[[dap =
-    {
-        adapter = function()
-            return require('rust-tools.dap').get_codelldb_adapter(
-                codelldb_path, liblldb_path)
-        end
-    }--]]
 }
 
 
