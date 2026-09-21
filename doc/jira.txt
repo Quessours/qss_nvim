@@ -13,6 +13,7 @@ one gesture.
 5. Keys				|jira-keys|
 6. Commands			|jira-commands|
 7. Editing a field		|jira-fields|
+7b. Creating an issue		|jira-create|
 8. Rich text			|jira-rich-text|
 9. Links			|jira-links|
 10. Tempo			|jira-tempo|
@@ -78,6 +79,8 @@ Every view has a name, and opening the name opens the view: >
 	:edit jira://sprint
 	:edit jira://sprint/3973
 	:edit jira://tempo
+	:edit jira://new/10001
+	:edit jira://after/LIS-1234
 <
 Because these are names, |gf| works on them, so does a quickfix entry, a
 session being restored, and `:bufdo`.  In a buffer of filetype `jira`, |gf| on
@@ -91,8 +94,14 @@ jira://board		The running sprint, in the board's own columns.
 jira://backlog		The backlog of the board, in rank order, read whole.
 jira://sprint		The sprint report and an ASCII burndown.
 jira://tempo		The week you logged, drawn.  See |jira-timesheet|.
+jira://new/ID		The form for a new issue of that type.  The type id
+			is in the name because it decides which fields the
+			form has.  See |jira-create|.
+jira://after/KEY	The form for the fields a create screen does not
+			carry, on the issue that now exists.  See
+			|jira-create-after|.
 
-All four have filetype `jira` and are parsed as markdown.
+All of them have filetype `jira` and are parsed as markdown.
 
 ==============================================================================
 5. Keys						*jira-keys*
@@ -196,6 +205,83 @@ instance has fields sharing a name.
 team.  See |jira-options|.
 
 ==============================================================================
+7b. Creating an issue				*jira-create*
+
+<leader>jat, or :JiraCreate, asks which type of issue, then opens a form: >
+
+	# New Story in LIS
+	  i or <CR> fills the field under the cursor · <C-s> creates · q drops
+
+	* Summary                   —
+	* Track                     Feature
+	  Description               —
+	  Epic Link                 —
+
+	  * is one of the 2 fields Jira requires here.
+<
+`i` or <CR> on a row opens the prompt that field takes, which is the same
+prompt |jira-fields| uses on an issue that exists.  Nothing reaches Jira until
+<C-s>, so a row can be left for later and filled in any order.  `q` drops the
+whole draft.
+
+<C-s> checks the starred rows first.  A required field left empty stops the
+create and is named, rather than being sent and refused by Jira.
+
+When the project names `after_create` fields, <C-s> opens a second form on the
+new issue instead of the issue itself.  See |jira-create-after|.
+
+						*jira-createmeta*
+Which fields the form has, which are starred and which values they take come
+from Jira's `createmeta`.  It answers per project and per issue type.  None of
+it is written down here, so a field an administrator adds appears by itself.
+A field no prompt can fill is left out unless Jira requires it.
+
+The types offered are the ones createmeta says you can create.  Sub-task types
+are not offered: a sub-task needs a parent, and the parent is where you make
+one.
+
+						*jira-create-defaults*
+What a new issue starts from is per project, in `create` in the options: the
+value each field opens with, the order the rows are read in, and the fields
+never worth a row.  See |jira-options|.
+
+						*jira-create-after*
+A create screen carries only what Jira lets you set while the issue is being
+made.  The sprint, the assignee and the estimates usually sit on the edit
+screen and on no create screen, so no entry in `order` can reach them: the
+form draws createmeta, and createmeta does not report them.
+
+`after_create` names the fields a second form asks for, per project.  The form
+opens on the issue that was just created, at `jira://after/KEY`: >
+
+	# LIS-2440  Read the build config from the exrc
+	  i or <CR> fills the field under the cursor · <C-s> saves · q leaves it
+
+	  Sprint                    —
+	  Assignee                  —
+	  Dev days                  —
+	  Summary                   Read the build config from the exrc
+	  Track                     Feature
+<
+The named fields come first, then every other field the issue already carries,
+which is what you filled on the create form.  <C-s> writes the rows you
+changed here and nothing else.  `q` opens the issue and writes nothing.
+
+The rows come from `editmeta`, so they are what this issue takes right now.  A
+named field that its edit screen refuses is reported when the form opens,
+rather than drawn as a row that cannot be filled.
+
+Nothing is carried over from the create form, so the address works on its own:
+`:edit jira://after/LIS-2440` reopens the form a day later, with the values the
+issue holds by then.
+
+The sprint is the one row not written as a field.  An issue moves into a
+sprint through the board, which is what that row does.
+
+A project with no `after_create` keeps the shorter flow, and its create form
+opens the issue.
+
+==============================================================================
 8. Rich text					*jira-rich-text*
 
 Jira stores a description as a tree of typed nodes.  Editing it as markdown
@@ -283,6 +369,12 @@ In `lua/qss_nvim/jira/config.lua`, under `M.options`:
 				each on or off
 	commit_prefix		prefill an empty commit message with the key
 	hidden_fields		fields never worth a line, by name
+	create			per project, by field id.  `defaults` is the
+				value a field opens with, `order` the rows that
+				come first, `hidden` the rows never drawn, and
+				`after_create` the rows of the second form.
+				See |jira-create-defaults| and
+				|jira-create-after|
 	tempo_url		the Tempo API address
 	daily_hours		the fallback when Tempo will not give the
 				schedule; normally unused, see |jira-holidays|

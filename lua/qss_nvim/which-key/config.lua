@@ -17,6 +17,7 @@ return {
         { "<leader>js",  group = "start" },
         { "<leader>m",  group = "make" },
         { "<leader>n",  group = "new" },
+        { "<leader>r",  group = "rust" },
         { "<leader>S",  group = "session" },
     },
     plugins = {

@@ -14,7 +14,7 @@ local M = {
             vim.cmd.RustLsp('openCargo')
         end
         , "Open Cargo.toml" },
-        ["<leader>cag"] = {
+        ["ca"] = {
             function()
                 if not isRustaceanEnabled() then
                     vim.notify "Rustacean not enabled"
@@ -34,7 +34,7 @@ local M = {
         end,
             "Rust Hover actions"
         },
-        ['<leader>snd'] = { function()
+        ['<leader>rnd'] = { function()
             if not isRustaceanEnabled() then
                 vim.notify "Rustacean not enabled"
                 return

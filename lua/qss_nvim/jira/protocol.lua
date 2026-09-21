@@ -12,6 +12,11 @@ local M = {}
 
 local ISSUE = '^jira://(%u[%u%d]*%-%d+)$'
 local SPRINT = '^jira://sprint/?(%d*)$'
+-- The issue type is in the name because it decides which fields the form shows.
+local NEW = '^jira://new/(%w+)$'
+-- The form for the fields a create screen does not carry, on the issue that
+-- now exists.
+local AFTER = '^jira://after/(%u[%u%d]*%-%d+)$'
 
 ---@param name string
 ---@return fun(buffer: integer)? loader
@@ -23,6 +28,20 @@ local function route(name)
             issue.prepare(buffer, key)
             issue.bind_keys(buffer, key)
             issue.load(buffer, key)
+        end
+    end
+
+    local finished = name:match(AFTER)
+    if finished then
+        return function(buffer)
+            require('qss_nvim.jira.after').adopt(buffer, finished)
+        end
+    end
+
+    local type_id = name:match(NEW)
+    if type_id then
+        return function(buffer)
+            require('qss_nvim.jira.create').adopt(buffer, type_id)
         end
     end
 
@@ -82,7 +101,9 @@ function M.setup()
                     ('%s is not a Jira address.'):format(event.match),
                     '',
                     'Try jira://LIS-1234, jira://board, jira://backlog,',
-                    'jira://sprint, jira://sprint/3973 or jira://tempo.',
+                    'jira://sprint, jira://sprint/3973, jira://tempo',
+                    'jira://new/10001, which is the form for a new issue,',
+                    'or jira://after/LIS-1234, which is the form that finishes one.',
                 })
                 return
             end

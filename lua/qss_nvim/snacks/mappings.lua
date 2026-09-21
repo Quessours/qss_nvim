@@ -27,6 +27,14 @@ local M = {
             Snacks.picker.files({ matcher = { smartcase = false } })
         end, "Find on filesystem" },
         ["<leader>fb"] = { function() Snacks.picker.buffers() end, "Find in buffers" },
+        -- The same list plus what git ignores and what starts with a dot, which
+        -- is where a local.conf, a kas local.yml or a project .nvim.lua lives.
+        -- The build directories are excluded in lua/plugins/snacks.lua, so this
+        -- stays a list you can read. <a-i> and <a-h> toggle the same two
+        -- switches inside any picker.
+        ["<leader>fi"] = { function()
+            Snacks.picker.files({ ignored = true, hidden = true })
+        end, "Find, ignored and hidden files included" },
         -- Open buffers, recent files and a file search in one list, ranked by
         -- frecency. Deliberately a separate key from <leader>ff, which stays a
         -- plain file list.

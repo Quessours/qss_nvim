@@ -1,6 +1,10 @@
 jira-addresses	jira.txt	/*jira-addresses*
 jira-commands	jira.txt	/*jira-commands*
 jira-context	jira.txt	/*jira-context*
+jira-create	jira.txt	/*jira-create*
+jira-create-after	jira.txt	/*jira-create-after*
+jira-create-defaults	jira.txt	/*jira-create-defaults*
+jira-createmeta	jira.txt	/*jira-createmeta*
 jira-fields	jira.txt	/*jira-fields*
 jira-gesture	jira.txt	/*jira-gesture*
 jira-hidden-fields	jira.txt	/*jira-hidden-fields*

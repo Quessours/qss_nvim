@@ -12,6 +12,9 @@ lint.linters_by_ft = {
     -- pyright reports type errors only. ruff adds the pyflakes and pycodestyle
     -- rules on top of it.
     python = { 'ruff' },
+    -- The bitbake language server reports what it cannot parse. oelint-adv
+    -- reports what parses and still breaks the Yocto recipe guidelines.
+    bitbake = { 'oelint-adv' },
 }
 
 local warned = {}

@@ -145,9 +145,14 @@ local function render(key, issue, editable, comments)
     row('Estimate', estimates(values),
         tracking and { field = tracking, current = values.timetracking } or nil)
 
+    -- The sprint moves through the board rather than through a field, which the
+    -- prompt behind this row knows. It is still a row, because reading the
+    -- sprint and changing it belong in the same place.
+    local in_sprint = by_id.customfield_10005
     local sprint = fields_module.render(values.customfield_10005)
     if sprint ~= '' then
-        row('Sprint', sprint)
+        row('Sprint', sprint,
+            in_sprint and { field = in_sprint, current = values.customfield_10005 } or nil)
     end
 
     lines[#lines + 1] = ''

@@ -41,9 +41,4 @@ return {
             components = { 'default' },
         }
     end,
-    condition = {
-        callback = function(search)
-            return cmake.is_cmake_project(search.dir)
-        end,
-    },
 }

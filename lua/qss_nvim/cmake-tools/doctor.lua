@@ -43,6 +43,122 @@ local function is_set(value)
     return value ~= nil and value ~= '' and not value:match('NOTFOUND$')
 end
 
+--- The file the generator writes last, so its absence says the generate step
+--- never ran. CMakeCache.txt cannot say this: cmake writes the cache early and
+--- keeps it when the run aborts afterwards.
+---@param generator string?
+---@return string?
+local function generator_file(generator)
+    generator = generator or ''
+    if generator:find('Ninja') then
+        return 'build.ninja'
+    elseif generator:find('Makefiles') then
+        return 'Makefile'
+    end
+    return nil
+end
+
+--- Why the last configure looks unfinished, or nil when it finished.
+---@param build_dir string
+---@param cache table<string, string>
+---@return string?
+local function incomplete_configure(build_dir, cache)
+    local file = generator_file(cache.CMAKE_GENERATOR)
+    if file and vim.fn.filereadable(build_dir .. '/' .. file) ~= 1 then
+        return ('no %s in %s'):format(file, build_dir)
+    end
+
+    -- cmake-tools writes the file-API query before configuring, and cmake
+    -- answers it only once the run reaches the end.
+    local api = build_dir .. '/.cmake/api/v1'
+    if vim.fn.isdirectory(api .. '/query') == 1
+        and vim.fn.isdirectory(api .. '/reply') ~= 1 then
+        return 'cmake left the file-API query unanswered'
+    end
+    return nil
+end
+
+---@class qss.cmake.Missing
+---@field name string
+---@field file string? the config file cmake looked for, for a config-mode package
+
+--- The packages cmake looked for and did not find. find_package in config mode
+--- leaves <Name>_DIR at its NOTFOUND sentinel, which names both the package and
+--- the file to search for. The CMAKE_ entries are the platform tools cmake
+--- probes for everywhere, so dlltool and tapi are NOTFOUND on every Linux and
+--- always will be.
+---@param cache table<string, string>
+---@return qss.cmake.Missing[]
+local function missing_packages(cache)
+    local missing = {}
+    for key, value in pairs(cache) do
+        if value:match('NOTFOUND$') and not key:match('^CMAKE_') then
+            local package = key:match('^(.+)_DIR$')
+            missing[#missing + 1] = {
+                name = package or key,
+                file = package and (package .. 'Config.cmake') or nil,
+            }
+        end
+    end
+    table.sort(missing, function(left, right)
+        return left.name < right.name
+    end)
+    return missing
+end
+
+--- apt-file prints "package: /path/to/file", one line per hit.
+---@param file string
+---@return string[]
+local function apt_file_packages(file)
+    local hits = vim.fn.systemlist({ 'apt-file', 'search', file })
+    if vim.v.shell_error ~= 0 then
+        return {}
+    end
+
+    local names, seen = {}, {}
+    for _, line in ipairs(hits) do
+        local name = line:match('^([^:%s]+):')
+        if name and not seen[name] then
+            seen[name] = true
+            names[#names + 1] = name
+            if #names == 3 then
+                break
+            end
+        end
+    end
+    return names
+end
+
+--- What to run to get the package. dnf and pacman index the files of packages
+--- that are not installed; on Debian only apt-file does, and it is not part of
+--- a default install, so saying how to get it is part of the answer.
+---@param missing qss.cmake.Missing
+---@return string?
+local function install_hint(missing)
+    if not missing.file then
+        return 'install what provides ' .. missing.name
+    end
+
+    if vim.fn.executable('apt-file') == 1 then
+        local packages = apt_file_packages(missing.file)
+        if #packages > 0 then
+            return ('sudo apt install %s'):format(table.concat(packages, ' '))
+        end
+        return ('no packaged file is named %s'):format(missing.file)
+    end
+    if vim.fn.executable('apt-get') == 1 then
+        return ('sudo apt install apt-file && sudo apt-file update, then apt-file search %s')
+            :format(missing.file)
+    end
+    if vim.fn.executable('dnf') == 1 then
+        return ("sudo dnf provides '*/%s'"):format(missing.file)
+    end
+    if vim.fn.executable('pacman') == 1 then
+        return ('pacman -F %s'):format(missing.file)
+    end
+    return ('find what ships %s'):format(missing.file)
+end
+
 ---@return qss.cmake.Finding[]
 function M.run()
     local findings = {}
@@ -155,6 +271,23 @@ function M.run()
     if not cache then
         add('error', 'not configured: no CMakeCache.txt in ' .. build_dir,
             ':CMakeGenerate  (<leader>mg)')
+        return findings
+    end
+    local unfinished = incomplete_configure(build_dir, cache)
+    if unfinished then
+        local packages = missing_packages(cache)
+        -- With a package named below, that name is the fix, and repeating the
+        -- command up here would bury it.
+        local fix
+        if #packages == 0 then
+            fix = ':CMakeGenerate  (<leader>mg), and read what it reports'
+        end
+        add('error', 'the last configure did not finish: ' .. unfinished, fix)
+
+        for _, package in ipairs(packages) do
+            add('error', ('cmake did not find the package %s'):format(package.name),
+                install_hint(package))
+        end
         return findings
     end
     add('ok', 'configured in ' .. build_dir)

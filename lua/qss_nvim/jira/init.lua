@@ -1,15 +1,14 @@
 -- A feature module rather than a plugin, in the shape of qt-class and cpp-impl:
 -- required once from the root init.lua, registering its commands as it loads.
 --
--- Creating an issue lives here because it is the one flow that has no issue key
--- to start from, so no other file in the directory is the right home for it.
+-- Picking the type of a new issue lives here because it is the one flow that has
+-- no issue key to start from. The form it opens is in create.lua.
 local M = {}
 
 local TITLE = 'Jira'
 
 local actions = require('qss_nvim.jira.actions')
 local cache = require('qss_nvim.jira.cache')
-local cli = require('qss_nvim.jira.cli')
 local config = require('qss_nvim.jira.config')
 local git = require('qss_nvim.jira.git')
 local issue = require('qss_nvim.jira.issue')
@@ -43,63 +42,39 @@ local function known_keys(lead)
     return keys
 end
 
----@param kind string
----@param summary string
----@param body string
-local function create_issue(kind, summary, body)
-    local args = { 'issue', 'create', '--type', kind, '--summary', summary, '--body', body, '--no-input' }
-
-    cli.run(args, function(stdout)
-        local key = stdout:match('%f[%w]%u[%u%d]*%-%d+')
-        cache.invalidate_prefix('issues.')
-
-        if not key then
-            return notify('the issue was created, but its key was not in the answer', vim.log.levels.WARN)
-        end
-        notify(('%s created'):format(key), vim.log.levels.INFO)
-        actions.menu(key, summary)
-    end)
-end
-
---- Create an issue: type, then summary, then a markdown buffer for the body.
+--- Create an issue: pick the type, then fill the form that type decides.
+---
+--- The type comes first because it decides which fields the issue has and which
+--- of them Jira requires. The list is what createmeta says you can create, so a
+--- type your account cannot open is never offered.
 function M.create()
     local instance = config.instance()
-    if not (instance and #instance.issue_types > 0) then
-        return notify('jira-cli knows no issue type. Re-run jira init.', vim.log.levels.ERROR)
+    if not (instance and instance.project) then
+        return notify('jira-cli names no project. Run jira init.', vim.log.levels.ERROR)
     end
 
-    local items = {}
-    for index, kind in ipairs(instance.issue_types) do
-        items[#items + 1] = { text = kind, idx = index }
-    end
+    local create = require('qss_nvim.jira.create')
 
-    Snacks.picker({
-        source = 'jira_issue_types',
-        items = items,
-        format = 'text',
-        title = ('New issue in %s'):format(instance.project or '?'),
-        layout = { preset = 'select' },
-        confirm = function(chooser, chosen)
-            chooser:close()
-            if not chosen then
-                return
-            end
+    create.issue_types(instance.project, function(types)
+        local items = {}
+        for index, kind in ipairs(types) do
+            items[#items + 1] = { text = kind.name, type_id = kind.id, idx = index }
+        end
 
-            Snacks.input({ prompt = ('%s summary: '):format(chosen.text) }, function(answer)
-                local summary = answer and vim.trim(answer) or ''
-                if summary == '' then
-                    return
+        Snacks.picker({
+            source = 'jira_issue_types',
+            items = items,
+            format = 'text',
+            title = ('New issue in %s'):format(instance.project),
+            layout = { preset = 'select' },
+            confirm = function(chooser, chosen)
+                chooser:close()
+                if chosen then
+                    create.open(chosen.type_id)
                 end
-                actions.compose({
-                    title = ('Description of the new %s'):format(chosen.text),
-                    initial = { '' },
-                    on_submit = function(body)
-                        create_issue(chosen.text, summary, body)
-                    end,
-                })
-            end)
-        end,
-    })
+            end,
+        })
+    end)
 end
 
 require('qss_nvim.jira.protocol').setup()

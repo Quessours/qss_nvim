@@ -4,6 +4,10 @@ local ensure_installed = {
     -- The linters qss_nvim.nvim-lint asks for.
     "cmakelint",
     "ruff",
+    "oelint-adv",
+    -- The servers lsp.lsp_init enables that mason has to fetch.
+    "language-server-bitbake",
+    "yaml-language-server",
 }
 
 local function install_missing()

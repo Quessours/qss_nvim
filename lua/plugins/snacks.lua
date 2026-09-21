@@ -27,6 +27,11 @@ return {
                 -- using file picker that opens the wrong file when starting to type a path.
                 confirm = require("qss_nvim.snacks.picker").confirm,
             },
+            -- Every source inherits this, files, grep and explorer alike. It is
+            -- what makes <a-i>, the built-in "show ignored files too" toggle,
+            -- worth pressing: without it that toggle pulls three million build
+            -- artefacts into the list, with it sixteen thousand real files.
+            exclude = require("qss_nvim.config.local_files").picker_exclude(),
             -- Allows Overseer and other things like CMakeTools 
             -- to use the snacks picker as the default
             ui_select = true,

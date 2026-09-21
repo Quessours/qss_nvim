@@ -8,6 +8,7 @@ local M = {
         require("nvim-treesitter.configs").setup {
             ensure_installed = {
                 "bash",       -- bashls (bash, sh)
+                "bitbake",    -- bitbakels (.bb, .bbappend, .bbclass, layer conf)
                 "c",          -- clangd
                 "cpp",        -- clangd
                 "doxygen",    -- injected into /** */, /*! */, /// and //! comments
@@ -21,6 +22,7 @@ local M = {
                 "javascript", -- ts_ls
                 "typescript", -- ts_ls
                 "tsx",        -- ts_ls (javascriptreact, typescriptreact)
+                "yaml",       -- yamlls, the kas config files included
                 "zig",        -- zls
             },
             highlight = {

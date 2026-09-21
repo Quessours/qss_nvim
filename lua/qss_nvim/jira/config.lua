@@ -47,6 +47,40 @@ M.options = {
         'Vulnerability',
         'Issue color',
     },
+    --- What a new issue starts with, per project key. Which fields exist,
+    --- which of them Jira requires and which values they take all come from
+    --- createmeta, so none of that is restated here. This table holds only what
+    --- Jira cannot know: what you always write, in which order you read it, and
+    --- what you never want a line for.
+    create = {
+        LIS = {
+            --- The value a field opens with, by field id. An option is named by
+            --- its label, which is resolved against the values createmeta
+            --- reports, so a label that no longer exists is reported rather
+            --- than sent. `me` on a user field means your own account.
+            defaults = {
+                customfield_11912 = 'Feature',
+                reporter = 'me',
+            },
+            --- The fields that come first, in this order. Every other field
+            --- follows, required ones before optional ones.
+            order = { 'summary', 'customfield_11912', 'description', 'customfield_10006' },
+            --- Never a line on the form, by field id. These are on top of
+            --- hidden_fields above, which works on the name instead.
+            hidden = { 'attachment', 'customfield_13141' },
+            --- The second form, which opens once the issue exists, for the
+            --- fields the create screen does not carry. The edit screen decides
+            --- what it takes here, so an id it refuses is named rather than
+            --- drawn. Leave the list out and the create form opens the issue,
+            --- the way it always did.
+            after_create = {
+                'customfield_10005',    -- Sprint
+                'assignee',
+                'customfield_10002',    -- Dev days
+                'timeoriginalestimate', -- no LIS screen carries it, so far
+            },
+        },
+    },
     tempo_url = 'https://api.tempo.io/4',
     -- What a full working day counts as, used only when Tempo will not say.
     -- Normally the real schedule is read from Tempo instead, which knows the
@@ -209,6 +243,20 @@ function M.is_hidden(name)
         end
     end
     return false
+end
+
+--- What the create form starts from for a project. A project with no entry
+--- gets an empty one, so the form asks Jira and nothing else.
+---@param project string?
+---@return { defaults: table<string, any>, order: string[], hidden: string[], after_create: string[] }
+function M.create_options(project)
+    local wanted = project and M.options.create[project] or {}
+    return {
+        defaults = wanted.defaults or {},
+        order = wanted.order or {},
+        hidden = wanted.hidden or {},
+        after_create = wanted.after_create or {},
+    }
 end
 
 --- The browser address of an issue.

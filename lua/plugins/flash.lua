@@ -13,9 +13,11 @@ return {
             -- rather than only the last f/t. Set enabled = false to get the
             -- stock Vim behaviour back.
             char = { enabled = true },
-            -- label the matches of / and ? while the search is being typed.
-            -- <C-s> toggles it from the command line.
-            search = { enabled = true },
+            -- Off by default: in a file with dozens of matches for a common
+            -- word, a label on every one of them gets in the way, and search
+            -- mode also clears hlsearch on jump. <C-s> turns the labels on
+            -- from the command line for the searches that want them.
+            search = { enabled = false },
         },
     },
 }
