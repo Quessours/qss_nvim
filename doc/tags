@@ -1,3 +1,4 @@
+deploy.txt	deploy.txt	/*deploy.txt*
 jira-addresses	jira.txt	/*jira-addresses*
 jira-commands	jira.txt	/*jira-commands*
 jira-context	jira.txt	/*jira-context*
@@ -21,3 +22,19 @@ jira-timesheet	jira.txt	/*jira-timesheet*
 jira-trouble	jira.txt	/*jira-trouble*
 jira-views	jira.txt	/*jira-views*
 jira.txt	jira.txt	/*jira.txt*
+qss-deploy	deploy.txt	/*qss-deploy*
+qss-deploy-builddir	deploy.txt	/*qss-deploy-builddir*
+qss-deploy-chain	deploy.txt	/*qss-deploy-chain*
+qss-deploy-delete	deploy.txt	/*qss-deploy-delete*
+qss-deploy-destdir	deploy.txt	/*qss-deploy-destdir*
+qss-deploy-files	deploy.txt	/*qss-deploy-files*
+qss-deploy-hostkey	deploy.txt	/*qss-deploy-hostkey*
+qss-deploy-limits	deploy.txt	/*qss-deploy-limits*
+qss-deploy-ports	deploy.txt	/*qss-deploy-ports*
+qss-deploy-rsync	deploy.txt	/*qss-deploy-rsync*
+qss-deploy-run-key	deploy.txt	/*qss-deploy-run-key*
+qss-deploy-trouble	deploy.txt	/*qss-deploy-trouble*
+qss-devices	deploy.txt	/*qss-devices*
+qss-yocto-presets	deploy.txt	/*qss-yocto-presets*
+qss-yocto-sdk	deploy.txt	/*qss-yocto-sdk*
+qss-yocto-source-map	deploy.txt	/*qss-yocto-source-map*

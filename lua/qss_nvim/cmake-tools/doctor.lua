@@ -17,25 +17,6 @@ local function tools()
     return ok and cmake_tools or nil
 end
 
----@param path string
----@return table<string, string>?
-local function read_cache(path)
-    local fd = io.open(path, 'r')
-    if not fd then
-        return nil
-    end
-
-    local entries = {}
-    for line in fd:lines() do
-        local key, value = line:match('^([%w_%-%.]+):%u+=(.*)$')
-        if key then
-            entries[key] = value
-        end
-    end
-    fd:close()
-    return entries
-end
-
 --- A cache entry cmake filled in with its <VAR>-NOTFOUND sentinel is as good as absent.
 ---@param value string?
 ---@return boolean
@@ -267,7 +248,7 @@ function M.run()
         return findings
     end
 
-    local cache = read_cache(build_dir .. '/CMakeCache.txt')
+    local cache = state.cache_values(build_dir .. '/CMakeCache.txt')
     if not cache then
         add('error', 'not configured: no CMakeCache.txt in ' .. build_dir,
             ':CMakeGenerate  (<leader>mg)')

@@ -1,6 +1,6 @@
 -- Choose tests in the picker, run them as an overseer task.
 --
-local diagnostics = require('qss_nvim.cmake-tools.diagnostics')
+local build = require('qss_nvim.cmake-tools.build')
 local state = require('qss_nvim.cmake-tools.state')
 local utils = require('qss_nvim.utils')
 
@@ -30,76 +30,14 @@ local function names_regex(names)
     return '^(' .. table.concat(vim.tbl_map(escape, names), '|') .. ')$'
 end
 
---- A preset only counts if it survived the sentinel filter in state.
----@param kind string "configure", "build" or "test"
----@return string?
-local function usable_preset(kind)
-    local selected = state.selected_preset(kind)
-    if selected and vim.tbl_contains(state.preset_names(kind), selected) then
-        return selected
-    end
-    return nil
-end
-
 --- Which test set ctest acts on, and in which configuration.
 ---@return string[]
 local function ctest_target()
-    local preset = usable_preset('test')
+    local preset = state.usable_preset('test')
     if preset then
         return { '--preset', preset }
     end
     return { '--test-dir', state.build_dir(), '-C', state.build_type() }
-end
-
---- The build the :CMake* commands would run, in the configuration they use.
----@return string[]
-local function build_args()
-    local preset = usable_preset('build')
-    local args
-    if preset then
-        args = { '--build', '--preset', preset }
-    else
-        args = { '--build', state.build_dir(), '--parallel' }
-    end
-    vim.list_extend(args, state.build_options())
-    return args
-end
-
---- The build ahead of a run speaks up only when it fails, because what the run
---- is there to show is ctest's output.
-local BUILD_COMPONENTS = {
-    'on_exit_set_status',
-    { 'on_complete_notify',  statuses = { 'FAILURE' } },
-    { 'on_complete_dispose', require_view = { 'FAILURE' } },
-}
-
---- ctest runs the binaries as they were built, so an edit since the last build
---- is tested in its old form unless the build runs first. cmake and the
---- generator behind it settle for a no-op when nothing changed.
----@param on_success fun()
-local function build_first(on_success)
-    local overseer = require('overseer')
-    local components = vim.deepcopy(BUILD_COMPONENTS)
-    vim.list_extend(components, diagnostics.components())
-
-    local task = overseer.new_task({
-        name = 'cmake build (before tests)',
-        cmd = { 'cmake' },
-        args = build_args(),
-        components = components,
-    })
-
-    task:subscribe('on_complete', function(_, status)
-        if status == 'SUCCESS' then
-            on_success()
-        else
-            vim.notify('build failed; the tests did not run', vim.log.levels.ERROR,
-                { title = 'CTest' })
-        end
-        -- A truthy return unsubscribes, which one build is done with either way.
-        return true
-    end)
-    task:start()
 end
 
 ---@param names string[]? nil runs the whole suite
@@ -139,7 +77,11 @@ end
 local function run(names)
     require('overseer').open({ enter = false, direction = 'bottom' })
     vim.notify('building...', vim.log.levels.INFO, { title = 'CTest' })
-    build_first(function()
+    build.first({
+        label = 'cmake build (before tests)',
+        failure = 'build failed; the tests did not run',
+        title = 'CTest',
+    }, function()
         start_ctest(names)
     end)
 end

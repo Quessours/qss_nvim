@@ -25,9 +25,11 @@ return {
         cmake_executor = {
             name = "overseer",
             opts = {
-                -- Here to ensure that compile output goes into diagnostics
+                -- Here to ensure that compile output goes into diagnostics,
+                -- and that the end of each task is announced
                 on_new_task = function(task)
                     require("qss_nvim.cmake-tools.diagnostics").attach(task)
+                    require("qss_nvim.cmake-tools.notify").attach(task)
                 end,
             },
         },

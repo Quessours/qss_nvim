@@ -1,6 +1,7 @@
 -- :CMakeBuildChecked and :CMakeDoctor.
 
 local doctor = require('qss_nvim.cmake-tools.doctor')
+local findings = require('qss_nvim.findings')
 local state = require('qss_nvim.cmake-tools.state')
 
 -- :CMakeRunTest builds its own ctest command and accepts no extra arguments, so
@@ -9,40 +10,6 @@ local state = require('qss_nvim.cmake-tools.state')
 if not vim.env.CTEST_PARALLEL_LEVEL then
     local ok, info = pcall(vim.uv.cpu_info)
     vim.env.CTEST_PARALLEL_LEVEL = tostring((ok and info and #info > 0) and #info or 1)
-end
-
-local MARKERS = { ok = '✓', warn = '!', error = '✗' }
-local LEVELS = {
-    ok = vim.log.levels.INFO,
-    warn = vim.log.levels.WARN,
-    error = vim.log.levels.ERROR,
-}
-
----@param findings qss.cmake.Finding[]
----@return "ok"|"warn"|"error"
-local function worst(findings)
-    local level = 'ok'
-    for _, finding in ipairs(findings) do
-        if finding.level == 'error' then
-            return 'error'
-        elseif finding.level == 'warn' then
-            level = 'warn'
-        end
-    end
-    return level
-end
-
----@param findings qss.cmake.Finding[]
----@param header string
-local function notify(findings, header)
-    local lines = { header }
-    for _, finding in ipairs(findings) do
-        table.insert(lines, ('%s %s'):format(MARKERS[finding.level], finding.text))
-        if finding.fix then
-            table.insert(lines, '    ' .. finding.fix)
-        end
-    end
-    vim.notify(table.concat(lines, '\n'), LEVELS[worst(findings)], { title = 'CMake' })
 end
 
 local function show_tasks()
@@ -77,7 +44,7 @@ local function rebuild(force)
             return finding.stage == 'setup' and finding.level ~= 'ok'
         end, doctor.run())
         if #blocking > 0 then
-            return notify(blocking, 'CMake rebuild blocked')
+            return findings.notify(blocking, 'CMake rebuild blocked', 'CMake')
         end
     end
 
@@ -124,8 +91,38 @@ vim.api.nvim_create_user_command('CMakeRebuild', function(opts)
     rebuild(opts.bang)
 end, { bang = true, desc = 'Delete the build directory, then configure and build' })
 
+vim.api.nvim_create_user_command('CMakeOptions', function()
+    require('qss_nvim.cmake-tools.options').pick()
+end, { desc = 'Edit the cache variables, then configure with the changes' })
+
+vim.api.nvim_create_user_command('CMakeDeploy', function(opts)
+    require('qss_nvim.cmake-tools.deploy').deploy({ force = opts.bang })
+end, { bang = true, desc = 'Build, install into staging, copy the tree to the device' })
+
+vim.api.nvim_create_user_command('CMakeRunRemote', function(opts)
+    require('qss_nvim.cmake-tools.deploy').run({ force = opts.bang })
+end, { bang = true, desc = 'Deploy, then run the launch target on the device' })
+
+vim.api.nvim_create_user_command('CMakeDebugRemote', function(opts)
+    require('qss_nvim.cmake-tools.deploy').debug({ force = opts.bang })
+end, { bang = true, desc = 'Deploy, start gdbserver on the device, attach the cross gdb' })
+
+vim.api.nvim_create_user_command('CMakeSelectDevice', function()
+    require('qss_nvim.remote.device').pick(function(device)
+        vim.notify(('the device is %s, at %s:%s')
+            :format(device.name, device.target, device.prefix or '(no prefix)'),
+            vim.log.levels.INFO, { title = 'Deploy' })
+    end)
+end, { desc = 'Choose the device to deploy to' })
+
+vim.api.nvim_create_user_command('CMakeDeployDoctor', function()
+    local devices = require('qss_nvim.remote.device')
+    findings.notify(require('qss_nvim.remote.doctor').debug(devices.selected()),
+        'Deploy setup', 'Deploy')
+end, { desc = 'Report what the deploy and the remote debug setup are missing' })
+
 vim.api.nvim_create_user_command('CMakeDoctor', function()
-    notify(doctor.run(), 'CMake setup')
+    findings.notify(doctor.run(), 'CMake setup', 'CMake')
 end, { desc = 'Report what CMake setup is missing' })
 
 vim.api.nvim_create_user_command('CMakeBuildChecked', function(opts)
@@ -143,12 +140,9 @@ vim.api.nvim_create_user_command('CMakeBuildChecked', function(opts)
         return build(clean)
     end
 
-    local blocking = vim.tbl_filter(function(finding)
-        return finding.level ~= 'ok'
-    end, doctor.run())
-
+    local blocking = findings.blocking(doctor.run())
     if #blocking > 0 then
-        return notify(blocking, 'CMake build blocked')
+        return findings.notify(blocking, 'CMake build blocked', 'CMake')
     end
     build(clean)
 end, {

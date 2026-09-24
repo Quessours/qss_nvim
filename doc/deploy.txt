@@ -1,0 +1,353 @@
+*deploy.txt*	Sending a build to a device over ssh
+
+			  DEPLOY OVER SSH
+
+Qt Creator deploys in three steps: install the project into a staging tree,
+copy that tree to the device, start the program there.  The same three steps
+are bound to four keys here, and every one of them reads the same device
+table.
+
+1. What it does			|qss-deploy|
+2. The device table		|qss-devices|
+3. A Yocto SDK			|qss-yocto-sdk|
+4. A CMake preset for the SDK	|qss-yocto-presets|
+5. The chain, as commands	|qss-deploy-chain|
+6. Where each piece lives	|qss-deploy-files|
+7. When something is wrong	|qss-deploy-trouble|
+8. What is deliberately absent	|qss-deploy-limits|
+
+==============================================================================
+1. What it does					*qss-deploy*
+
+	key		command			steps it runs ~
+	<leader>mh	:CMakeSelectDevice	pick the device
+	<leader>mu	:CMakeDeploy		build, install, hooks, copy
+	<leader>mr	:CMakeRunRemote		the four above, then the program
+	<leader>md	:CMakeDebugRemote	the four above, then the debugger
+			:CMakeDeployDoctor	report what is missing
+
+The device choice is remembered for each project root.  A `!` on any of the
+three chain commands skips the pre-flight checks, which otherwise block the
+command the way `:CMakeBuildChecked` does.
+
+						*qss-deploy-run-key*
+<leader>mr and <leader>md are also the keys for a build on this machine.  A
+cross build cannot start here, so both send it to the device instead, by
+:CMakeRunRemote and :CMakeDebugRemote.  Two things decide it:
+
+	1. cmake cross compiles.  `CMAKE_CROSSCOMPILING` is `TRUE` in
+	   `<build dir>/CMakeFiles/<version>/CMakeSystem.cmake`, which is
+	   where cmake records it.  It is not in the cache.
+	2. `CMAKE_INSTALL_PREFIX` equals the `prefix` of the device.
+
+A build for this machine therefore still runs here, and the two keys are
+unchanged for it.  If several devices are declared and none is selected, the
+picker opens first.  If the prefix does not match, nothing runs, and the
+report names both values: the binary carries that prefix in its RPATH and in
+its QML import paths, so it is a build for another machine.
+
+Nothing in the ssh path has ever run against a real target from this
+machine, because no sshd listens here.  The pure functions, the staging tree
+and every blocked path were tested.  The copy, the remote run and the remote
+debug were not.
+
+==============================================================================
+2. The device table				*qss-devices*
+
+`vim.g.qss_devices`, declared in the project `.nvim.lua`, which init.lua
+reads through 'exrc'.  A list and a name-to-device map are both accepted.
+An entry with neither `host` nor `ssh` is dropped.
+`doc/yocto-exrc-template.lua` holds a filled example.
+
+	field		default		read by ~
+	name		the address	the picker, the staging path
+	host		required	the address, an IP or a hostname
+	user		"root"		who logs in
+	ssh_port	22		the port sshd listens on
+	key		none		`-i`, an identity file
+	ssh_options	{}		further ssh options, as they are
+	rsync_options	{}		further rsync options, as they are
+	ssh		none		a `~/.ssh/config` alias, read when
+					`host` is absent
+	prefix		none		CMAKE_INSTALL_PREFIX, the copy
+					destination, and the working
+					directory of the program
+	env		{}		`env A=b` in front of the program
+	args		{}		arguments of the program and of
+					gdbserver
+	run_command	none		a program on the device that
+					<leader>mr starts instead of the
+					launch target
+	before_deploy	{}		after the install, before the copy
+	before_run	{}		the same ssh connection as the
+					program
+	gdb		none		miDebuggerPath, for <leader>md
+	gdbserver	"gdbserver"	the command started on the device
+	sysroot		none		`set sysroot` in gdb
+	source_map	{}		one `set substitute-path` per entry
+	port		2345		the port gdbserver holds
+
+The doctor refuses a device without `prefix`.  A trailing slash on `prefix`
+and on `sysroot` is stripped.  A hook given as one string becomes a list of
+one.
+
+`host` and `ssh` are two forms of one thing, and `host` wins when both are
+given.  A device that names a `host` is reached as `user@host`.  A device
+that names an alias is handed to ssh as it is, and `~/.ssh/config` answers
+for the address, the login user, the port, the key and the jump host.
+`user`, `ssh_port` and `key` belong to the first form.
+
+						*qss-deploy-launcher*
+`run_command` belongs to a device whose program is not the file the build
+produces.  An embedded image often ships a launcher that reads the board
+settings, exports the environment and then starts the binary, and starting
+that launcher is closer to what the device does at boot than starting the
+binary with a hand-written `env`.
+
+:CMakeRunRemote reads it.  :CMakeDebugRemote does not, because gdbserver
+takes a program and a launcher would put a shell between the two.  The
+launcher has to start the deployed binary and not the one of the image, so
+check its last line after a deploy.
+
+						*qss-deploy-ports*
+`ssh_port` is the port the login goes to, and `port` is the port gdbserver
+holds on the device.  They are different ports, and their defaults are 22
+and 2345.
+
+						*qss-deploy-hostkey*
+Every call carries `-o StrictHostKeyChecking=accept-new`, so a device seen
+for the first time is stored rather than asked about.  Nothing in a task
+pane can answer that question, and the alternative is a hang.  A key that
+changed still stops the connection.
+
+:CMakeDeployDoctor probes the login with `-o BatchMode=yes`, which turns a
+prompt into a failure.  A device that asks for a password is reported as a
+warning, because the deploy itself would wait for an answer forever.
+
+The files land in a directory the login user owns, and no sudo runs
+anywhere.
+
+						*qss-deploy-rsync*
+The copy runs `rsync -az --info=progress2`, and `rsync_options` is appended
+after those and after `--delete`.  Last wins in rsync, so that field can undo
+the defaults as well as add to them: `--no-perms` and its family undo the
+parts of `-a`, and `--exclude` takes files out of the copy. >
+
+	rsync_options = { '--no-perms', '--exclude', '*.qmlc' },
+<
+A `--delete` declared there is also last, so it survives the guard below.
+
+						*qss-deploy-delete*
+rsync carries the files, with `--delete`, so that a file the project stopped
+installing also leaves the device.  A `prefix` of `/`, `/bin`, `/etc`,
+`/home`, `/lib`, `/opt`, `/root`, `/usr` or `/var` holds a whole system, and
+`--delete` against one of those removes the operating system.  The flag is
+dropped for those nine, and the doctor says so.
+
+==============================================================================
+3. A Yocto SDK					*qss-yocto-sdk*
+
+Two things come out of the SDK: the cross gdb for `gdb`, and the target
+sysroot for `sysroot`.  For an SDK under `~/opt/kirkstone_sdk`, built for
+`cortexa9t2hf-neon-poky-linux-gnueabi`: >
+
+	local sdk = vim.fn.expand('~/opt/kirkstone_sdk')
+	local cross = sdk ..
+	    '/sysroots/x86_64-pokysdk-linux/usr/bin/arm-poky-linux-gnueabi'
+
+	gdb = cross .. '/arm-poky-linux-gnueabi-gdb',
+	sysroot = sdk ..
+	    '/sysroots/cortexa9t2hf-neon-poky-linux-gnueabi',
+<
+If the image has no gdbserver, the SDK carries one for the target under
+`sysroots/<machine>/usr/bin/gdbserver`.  Copy it into `prefix`, which the
+login user owns, and name it: >
+
+	rsync -a <sdk>/sysroots/<machine>/usr/bin/gdbserver alias:/home/root/app/
+	-- then in the device table:
+	gdbserver = '/home/root/app/gdbserver',
+<
+						*qss-yocto-source-map*
+A kas-container build records container paths, because the compiler runs
+inside the container: `/work` for the checkout and `/build` for the build
+directory.  Neither exists on this machine, so both need a `source_map`
+entry, or gdb shows no sources.
+
+==============================================================================
+4. A CMake preset for the SDK			*qss-yocto-presets*
+
+`OEToolchainConfig.cmake` is a wrapper over the environment.  It reads
+`$ENV{CFLAGS}`, `$ENV{OECORE_TARGET_SYSROOT}` and `$ENV{OECORE_TARGET_ARCH}`,
+and it never sets the compiler.  Passing `-DCMAKE_TOOLCHAIN_FILE=` alone
+therefore configures a host build with an empty sysroot.
+
+The environment script fills those variables, but it is bash, and cmake-tools
+runs the `cmake` binary with no shell.  Sourcing it before Neovim works.  In
+fish, with the bass plugin: >
+
+	bass source ~/opt/kirkstone_sdk/environment-setup-<machine>
+	nvim
+<
+A configure preset removes that step, because CMakePresets can carry an
+environment of its own.  `doc/yocto-presets-template.json` is a filled
+`CMakePresets.json` for the SDK above.  Copy it to the project root and edit
+the four paths at the top of the `environment` block.
+
+The rules that file follows, for another SDK:
+
+- The flags belong in `CFLAGS` and `CXXFLAGS` inside `environment`.  The
+  toolchain file forces `CMAKE_C_FLAGS` from the environment, so a cache
+  entry for the flags is overwritten.
+- The compiler belongs in `cacheVariables`, as an absolute path.  The
+  toolchain file sets no compiler at all.
+- `binaryDir` must stay `${sourceDir}/out/Debug`, which is what cmake-tools
+  expands by default.  See |qss-deploy-builddir|.
+- `CMAKE_INSTALL_PREFIX` must equal the device `prefix`.
+
+Print the values the script exports, to fill another SDK in: >
+
+	bash -c 'source <sdk>/environment-setup-<machine> && env | sort'
+<
+This preset was tested with `env -i`, which is an empty environment.  The
+configure, the build and the install all produced target binaries.
+
+==============================================================================
+5. The chain, as commands			*qss-deploy-chain*
+
+Run these by hand to find which step breaks.  `<staging>` is
+`<build dir>/qss-deploy/<device name>`, and the copy source is that path
+followed by `prefix`: >
+
+	# 1. build
+	cmake --build out/Debug --parallel
+
+	# 2. install
+	DESTDIR=$PWD/out/Debug/qss-deploy/rpi4 \
+	    cmake --install $PWD/out/Debug --config Debug
+
+	# 3. before_deploy, skipped when the list is empty
+	ssh $OPTS root@192.168.1.42 '( systemctl stop myapp ; true )'
+
+	# 4. copy
+	rsync -az --info=progress2 --delete -e "ssh $OPTS" \
+	    $PWD/out/Debug/qss-deploy/rpi4/home/root/app/ \
+	    root@192.168.1.42:/home/root/app/
+
+	# 5. run
+	ssh -t $OPTS root@192.168.1.42 \
+	    "cd '/home/root/app' && ( pkill -f myapp ; true ) && \
+	    env 'QT_QPA_PLATFORM=eglfs' '/home/root/app/bin/myapp'"
+
+	# 6. debug
+	ssh -t $OPTS root@192.168.1.42 \
+	    "cd '/home/root/app' && ( pkill -f myapp ; true ) && \
+	    env 'QT_QPA_PLATFORM=eglfs' 'gdbserver' ':2345' \
+	    '/home/root/app/bin/myapp'"
+<
+`$OPTS` stands for what every call carries: `-o
+StrictHostKeyChecking=accept-new -o ConnectTimeout=10`, then `-p` for an
+`ssh_port` other than 22, `-i` for a `key`, then `ssh_options`.  See
+|qss-deploy-hostkey|.  An alias device is reached by its alias, in the same
+place as the address above.
+						*qss-deploy-builddir*
+Step 1 takes `--preset <name>` instead of the directory when a build preset
+is selected, and the build directory is the one cmake-tools reports.  That is
+`out/Debug` by default, and not `build`.  cmake-tools only expands its
+template once it has configured the project in this session, so configure
+before the first deploy.
+
+						*qss-deploy-destdir*
+Step 2 uses `DESTDIR` and not `--prefix`.  The binary is configured with the
+prefix it runs under on the device, so the RPATH and the QML import paths
+inside it are already right.  `DESTDIR` only decides where that layout is
+assembled here, which is what makes the staging tree a mirror of the device.
+`cmake --install` takes no preset, and none exists.
+
+Between step 2 and step 4, an empty staged tree stops the chain.  A project
+with no `install()` rule makes `cmake --install` succeed and copy nothing,
+and that is the one failure in this chain that looks like success.
+
+After step 6, gdb attaches.  `miDebuggerServerAddress` is `host` as the
+device declares it, or, for an alias device, the hostname that `ssh -G
+<alias>` reports.  `program` is the binary in the build tree, on
+purpose, because the staged copy is often stripped.  gdb then runs `set
+sysroot` and one `set substitute-path` per `source_map` entry.
+
+==============================================================================
+6. Where each piece lives			*qss-deploy-files*
+
+	file				what it holds ~
+	remote/device.lua		the device table, the selection,
+					`ssh -G` resolution, and every argv
+					builder.  No CMake knowledge.
+	remote/doctor.lua		the pre-flight checks.  `M.run` for
+					a deploy, `M.debug` adds the cross
+					toolchain ones.
+	cmake-tools/deploy.lua		the chain, the staging paths, the
+					dap configuration.
+	cmake-tools/build.lua		the shared build step.
+	findings.lua			the `:*Doctor` renderer.
+	nvim-dap/adapters/cppdbg.lua	registers the adapter, and no
+					configuration.
+	cmake-tools/state.lua		`cache_values()`, the name-to-value
+					cache reader.
+
+Two constants are the ones most likely to need an edit.  `LISTENING` in
+deploy.lua is the gdbserver line the attach waits for, and `LISTEN_TIMEOUT_MS`
+is how long it waits.
+
+==============================================================================
+7. When something is wrong			*qss-deploy-trouble*
+
+`:CMakeDeployDoctor` reports what the deploy and the debug setup lack, and
+every finding carries its fix.  Beyond that:
+
+	symptom				first thing to look at ~
+	`Text file busy` from rsync	the old binary still runs.  Put
+					the stop command in `before_deploy`.
+	files land in the wrong place	CMAKE_INSTALL_PREFIX against
+					`prefix`.  <leader>mv edits the
+					cache.
+	nothing is copied, no error	the project installs no files.
+	stale files stay behind		`prefix` is a shared directory, so
+					`--delete` was dropped.  See
+					|qss-deploy-delete|.
+	the copy asks for a password	the login needs one, and no task can
+					type it.  :CMakeDeployDoctor
+					reports this before the copy.
+	the debugger never attaches	gdbserver printed another line.
+					Compare it with `LISTENING`.
+	gdb attaches, no symbols	the build type.  The launch target
+					needs debug information.
+	gdb shows no sources		`source_map`.  See
+					|qss-yocto-source-map|.
+	nothing answers at the address	`host`, then `ssh_port`.  The doctor
+					probes both.
+	ssh cannot resolve the alias	the alias is not in `~/.ssh/config`.
+					A `host` needs no such block.
+	the program dies at once	the environment.  Start with the Qt
+					platform plugin in `env`.
+	the host compiler was used	the SDK environment was missing at
+					configure time.  See
+					|qss-yocto-presets|.
+
+==============================================================================
+8. What is deliberately absent			*qss-deploy-limits*
+
+No overseer template for the deploy.  The chain needs a Lua check between the
+install and the copy, and a continuation for the run and the debug.  One path
+that works is worth more than a second path that expresses the same chain as
+one command line.  <leader>mm therefore does not offer it.
+
+No `after_run` hook.  Nothing has asked for a restore step, and it is the
+same shape as the two hooks that exist.
+
+Hook failures never stop the chain.  `pkill` with nothing to kill exits 1,
+and a unit that is already stopped is the state the hook wants.  A failure
+that matters is reported by the step after it.
+
+`cpp_gdb.lua` stays out of the adapter loader, because it overwrites
+`dap.configurations.cpp` with a hardcoded path.  The cppdbg adapter file
+exists so that nothing has to bring it back.
+
+vim:tw=78:ts=8:noet:ft=help:norl:

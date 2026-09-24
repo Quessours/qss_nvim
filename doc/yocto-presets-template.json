@@ -1,0 +1,47 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "kirkstone",
+            "displayName": "Kirkstone SDK (cortexa9t2hf-neon)",
+            "description": "Cross build with the Yocto SDK, without sourcing the environment script. The environment block below carries what OEToolchainConfig.cmake reads, and the cache variables carry the compiler, which that file never sets.",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/Debug",
+            "toolchainFile": "$env{SDK}/sysroots/x86_64-pokysdk-linux/usr/share/cmake/OEToolchainConfig.cmake",
+            "environment": {
+                "SDK": "/home/maxime/opt/kirkstone_sdk",
+                "TARGET_SYSROOT": "$env{SDK}/sysroots/cortexa9t2hf-neon-poky-linux-gnueabi",
+                "CROSS_BIN": "$env{SDK}/sysroots/x86_64-pokysdk-linux/usr/bin/arm-poky-linux-gnueabi",
+
+                "OECORE_NATIVE_SYSROOT": "$env{SDK}/sysroots/x86_64-pokysdk-linux",
+                "OECORE_TARGET_SYSROOT": "$env{TARGET_SYSROOT}",
+                "OECORE_TARGET_ARCH": "arm",
+                "OECORE_BASELIB": "lib",
+                "OE_CMAKE_FIND_LIBRARY_CUSTOM_LIB_SUFFIX": "",
+
+                "CFLAGS": "-O2 -pipe -g -feliminate-unused-debug-types -mthumb -mfpu=neon -mfloat-abi=hard -mcpu=cortex-a9 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security",
+                "CXXFLAGS": "$env{CFLAGS}",
+                "LDFLAGS": "-Wl,-O1 -Wl,--hash-style=gnu -Wl,--as-needed -Wl,-z,relro,-z,now",
+
+                "PKG_CONFIG_SYSROOT_DIR": "$env{TARGET_SYSROOT}",
+                "PKG_CONFIG_PATH": "$env{TARGET_SYSROOT}/usr/lib/pkgconfig:$env{TARGET_SYSROOT}/usr/share/pkgconfig",
+                "CONFIG_SITE": "$env{SDK}/site-config-cortexa9t2hf-neon-poky-linux-gnueabi",
+
+                "PATH": "$env{CROSS_BIN}:$env{SDK}/sysroots/x86_64-pokysdk-linux/usr/bin:$penv{PATH}"
+            },
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "$env{CROSS_BIN}/arm-poky-linux-gnueabi-gcc",
+                "CMAKE_CXX_COMPILER": "$env{CROSS_BIN}/arm-poky-linux-gnueabi-g++",
+                "CMAKE_INSTALL_PREFIX": "/home/root/app"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "kirkstone",
+            "configurePreset": "kirkstone"
+        }
+    ]
+}

@@ -59,6 +59,19 @@ function M.selected_preset(kind)
     return cmake_tools.get_build_preset()
 end
 
+--- The selected preset, but only when it is one of the names a task can offer,
+--- so that a stale or filtered-out selection falls back to the explicit
+--- directory arguments instead of reaching cmake.
+---@param kind string "configure", "build" or "test"
+---@return string?
+function M.usable_preset(kind)
+    local selected = M.selected_preset(kind)
+    if selected and vim.tbl_contains(M.preset_names(kind), selected) then
+        return selected
+    end
+    return nil
+end
+
 --- cmake_build_directory is a template string, and cmake-tools only expands it
 --- once it has configured the project in this session. Before that it hands back
 --- the raw "out/${variant:buildType}", which cmake would take literally.
@@ -118,10 +131,52 @@ function M.generate_options()
     return (cmake_tools and cmake_tools.get_generate_options()) or {}
 end
 
+--- Whether the last configure produced binaries this machine cannot execute.
+---
+--- CMAKE_CROSSCOMPILING never reaches CMakeCache.txt. cmake records it in the
+--- CMakeSystem.cmake of the build directory, which is also where a toolchain
+--- file that sets CMAKE_SYSTEM_NAME ends up being answered.
+---@return boolean
+function M.cross_compiling()
+    local pattern = M.build_dir() .. '/CMakeFiles/*/CMakeSystem.cmake'
+    for _, path in ipairs(vim.fn.glob(pattern, true, true)) do
+        for line in io.lines(path) do
+            if line:match('^set%(CMAKE_CROSSCOMPILING%s+"TRUE"%)') then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 ---@return string[]
 function M.build_options()
     local cmake_tools = tools()
     return (cmake_tools and cmake_tools.get_build_options()) or {}
+end
+
+--- The cache as a name-to-value map. Only the cache itself answers what the
+--- last configure run settled on: a preset or a -D on the command line both end
+--- up here, and so does everything cmake found by itself.
+---@param path string? defaults to the CMakeCache.txt of the build directory
+---@return table<string, string>?
+function M.cache_values(path)
+    path = path or (M.build_dir() .. '/CMakeCache.txt')
+
+    local file = io.open(path, 'r')
+    if not file then
+        return nil
+    end
+
+    local values = {}
+    for line in file:lines() do
+        local name, value = line:match('^([%w_%-%.]+):%u+=(.*)$')
+        if name then
+            values[name] = value
+        end
+    end
+    file:close()
+    return values
 end
 
 return M

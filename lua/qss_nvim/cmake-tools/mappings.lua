@@ -5,8 +5,14 @@ local M = {
         ["<leader>mB"] = { "<cmd> CMakeBuildChecked clean <CR>", "CMake clean build (keeps cache)" },
         ["<leader>mR"] = { "<cmd> CMakeRebuild <CR>", "CMake clean rebuild (wipes build dir)" },
         ["<leader>m?"] = { "<cmd> CMakeDoctor <CR>", "CMake doctor" },
-        ["<leader>mr"] = { "<cmd> CMakeRun <CR>", "CMake run" },
-        ["<leader>md"] = { "<cmd> CMakeDebug <CR>", "CMake debug" },
+        -- A cross build cannot start here, so these two send it to the
+        -- device it was configured for. See deploy.lua, wherever_it_runs.
+        ["<leader>mr"] = { function()
+            require("qss_nvim.cmake-tools.deploy").run_wherever()
+        end, "CMake run" },
+        ["<leader>md"] = { function()
+            require("qss_nvim.cmake-tools.deploy").debug_wherever()
+        end, "CMake debug" },
         ["<leader>mc"] = { "<cmd> CMakeClean <CR>", "CMake clean" },
         -- Picks tests like :CMakeRunTest but runs them in overseer rather than
         -- the terminal the cmake_runner would use. The "cmake test" task on
@@ -33,6 +39,11 @@ local M = {
         ["<leader>mp"] = { "<cmd> CMakeSelectConfigurePreset <CR>", "Select configure preset" },
         ["<leader>mP"] = { "<cmd> CMakeSelectBuildPreset <CR>", "Select build preset" },
         ["<leader>ms"] = { "<cmd> CMakeSettings <CR>", "CMake settings" },
+        ["<leader>mv"] = { "<cmd> CMakeOptions <CR>", "Edit CMake cache variables" },
+        -- Deploying to a device: pick it, send the build to it. <leader>mr
+        -- and <leader>md then run and debug it there.
+        ["<leader>mh"] = { "<cmd> CMakeSelectDevice <CR>", "Select the device (host)" },
+        ["<leader>mu"] = { "<cmd> CMakeDeploy <CR>", "Deploy to the device" },
     }
 }
 
