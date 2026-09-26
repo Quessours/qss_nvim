@@ -4,6 +4,11 @@ vim.o.exrc = true
 
 vim.diagnostic.config({ virtual_text = true, severity_sort = true })
 
+local options = require("qss_nvim.config.options")
+for k, v in pairs(options) do
+    vim.opt[k] = v
+end
+
 local mappings = require("qss_nvim.mappings")
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -25,11 +30,6 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup("plugins")
 
 require('lsp.lsp_init')
-
-local options = require("qss_nvim.config.options")
-for k, v in pairs(options) do
-    vim.opt[k] = v
-end
 
 local qss_utils = require("qss_nvim.utils")
 local qss_dap_utils = require("qss_nvim.nvim-dap.utils")

@@ -1,44 +1,19 @@
-local luals_config = require("lsp.configs.luals")
-local clangd_config = require("lsp.configs.clangd")
-local zls_config = require("lsp.configs.zls")
-local bashls_config = require("lsp.configs.bashls")
-local fishlsp_config = require("lsp.configs.fish_lsp")
-local pyright_config = require("lsp.configs.pyright")
-local typescript_config = require("lsp.configs.ts_ls")
-local sqls_config = require("lsp.configs.sqls")
-local plantumlls_config = require("lsp.configs.plantuml")
-local qmlls_config = require("lsp.configs.qmlls")
-local qtprops_config = require("lsp.configs.qtprops")
-local cppimpl_config = require("lsp.configs.cppimpl")
-local bitbakels_config = require("lsp.configs.bitbakels")
-local yamlls_config = require("lsp.configs.yamlls")
-
-vim.lsp.config('luals', luals_config)
-vim.lsp.config('clangd', clangd_config)
-vim.lsp.config('zls', zls_config)
-vim.lsp.config('bashls', bashls_config)
-vim.lsp.config('fish_lsp', fishlsp_config)
-vim.lsp.config('pyright', pyright_config)
-vim.lsp.config('ts_ls', typescript_config)
-vim.lsp.config('sqls', sqls_config)
-vim.lsp.config('plantuml', plantumlls_config)
-vim.lsp.config('qmlls', qmlls_config)
-vim.lsp.config('qtprops', qtprops_config)
-vim.lsp.config('cppimpl', cppimpl_config)
-vim.lsp.config('bitbakels', bitbakels_config)
-vim.lsp.config('yamlls', yamlls_config)
-
-vim.lsp.enable('luals')
-vim.lsp.enable('clangd')
-vim.lsp.enable('zls')
-vim.lsp.enable('bashls')
-vim.lsp.enable('fish_lsp')
-vim.lsp.enable('pyright')
-vim.lsp.enable('ts_ls')
-vim.lsp.enable('sqls')
-vim.lsp.enable('plantuml')
-vim.lsp.enable('qmlls')
-vim.lsp.enable('qtprops')
-vim.lsp.enable('cppimpl')
-vim.lsp.enable('bitbakels')
-vim.lsp.enable('yamlls')
+-- Each server reads its configuration from after/lsp/<name>.lua. after/ comes
+-- last on the runtimepath, so these files win over the lsp/<name>.lua that
+-- nvim-lspconfig ships for the same server.
+vim.lsp.enable({
+    'luals',
+    'clangd',
+    'zls',
+    'bashls',
+    'fish_lsp',
+    'pyright',
+    'ts_ls',
+    'sqls',
+    'plantuml',
+    'qmlls',
+    'qtprops',
+    'cppimpl',
+    'bitbakels',
+    'yamlls',
+})
