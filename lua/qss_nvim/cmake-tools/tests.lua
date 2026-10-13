@@ -80,7 +80,7 @@ local function run(names)
     require('overseer').open({ enter = false, direction = 'bottom' })
     vim.notify('building...', vim.log.levels.INFO, { title = 'CTest' })
     build.first({
-        label = 'cmake build (before tests)',
+        name = 'cmake build (before tests)',
         failure = 'build failed; the tests did not run',
         title = 'CTest',
     }, function()

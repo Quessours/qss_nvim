@@ -220,7 +220,7 @@ function M.deploy(opts, on_success)
         { title = TITLE })
 
     build.first({
-        label = 'cmake build (before deploy)',
+        name = 'cmake build (before deploy)',
         failure = 'build failed; nothing was deployed',
         title = TITLE,
     }, function()

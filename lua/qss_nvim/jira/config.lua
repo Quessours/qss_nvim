@@ -98,7 +98,18 @@ M.options = {
     -- Normally the real schedule is read from Tempo instead, which knows the
     -- working pattern and the public holidays and needs no guess here.
     daily_hours = 7,
+    -- What Jira writes as `1d`, per Jira site, keyed by the server jira-cli
+    -- talks to. It is a setting of the whole site, not of a project (Settings >
+    -- Issues > Time tracking), and the endpoint that reports it needs admin
+    -- rights, so it is written here. A site not listed counts Jira's default.
+    jira_day_hours = {
+        -- An issue estimated at 1d holds 25200 seconds.
+        ['https://tea-ebook.atlassian.net'] = 7,
+    },
 }
+
+-- What Jira counts in a day when its admin changed nothing.
+local JIRA_DEFAULT_DAY_HOURS = 8
 
 ---@class qss.jira.Field
 ---@field name string the label Jira shows, and the key the --custom flag takes
@@ -230,6 +241,18 @@ local instance
 function M.instance()
     instance = instance or read()
     return instance
+end
+
+--- What `1d` holds on the site jira-cli talks to, in seconds.
+---@return integer
+function M.day_seconds()
+    local known = M.instance()
+    local hours = JIRA_DEFAULT_DAY_HOURS
+    if known and known.server then
+        local server = known.server:gsub('/+$', '')
+        hours = M.options.jira_day_hours[server] or hours
+    end
+    return hours * 3600
 end
 
 --- The custom fields --custom can actually write.

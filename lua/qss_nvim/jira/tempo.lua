@@ -11,6 +11,7 @@ local TITLE = 'Jira'
 
 local cache = require('qss_nvim.jira.cache')
 local cli = require('qss_nvim.jira.cli')
+local config = require('qss_nvim.jira.config')
 local http = require('qss_nvim.jira.http')
 
 ---@param message string
@@ -78,8 +79,9 @@ local function to_seconds(spent)
 
     local total = 0
     local matched = 0
+    local day = config.day_seconds()
     for amount, unit in text:gmatch('(%d+)([dhm])') do
-        local scale = unit == 'd' and 28800 or unit == 'h' and 3600 or 60
+        local scale = unit == 'd' and day or unit == 'h' and 3600 or 60
         total = total + tonumber(amount) * scale
         matched = matched + #amount + 1
     end

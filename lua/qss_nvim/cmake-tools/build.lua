@@ -5,6 +5,7 @@
 -- the build runs again. cmake and the generator behind it settle for a no-op
 -- when nothing changed, which is what makes this cheap enough to always do.
 
+local build_first = require('qss_nvim.overseer.build_first')
 local diagnostics = require('qss_nvim.cmake-tools.diagnostics')
 local state = require('qss_nvim.cmake-tools.state')
 
@@ -24,43 +25,33 @@ function M.args()
     return args
 end
 
---- A build that runs ahead of something else speaks up only when it fails,
---- because what the step after it is there to show is that step's own output.
-local COMPONENTS = {
-    'on_exit_set_status',
-    { 'on_complete_notify',  statuses = { 'FAILURE' } },
-    { 'on_complete_dispose', require_view = { 'FAILURE' } },
-}
-
 ---@class qss.cmake.BuildFirst
----@field label string the task name
+---@field name string the task name
 ---@field failure string what to say when the build fails
 ---@field title string the notification title
 
+--- The build, with its errors parsed into diagnostics.
+---@param opts qss.cmake.BuildFirst
+---@return qss.overseer.BuildFirst
+function M.task(opts)
+    return {
+        name = opts.name,
+        cmd = vim.list_extend({ 'cmake' }, M.args()),
+        components = diagnostics.components(),
+        failure = opts.failure,
+        title = opts.title,
+    }
+end
+
+--- The build, then `on_success`.
 ---@param opts qss.cmake.BuildFirst
 ---@param on_success fun()
 function M.first(opts, on_success)
-    local overseer = require('overseer')
-    local components = vim.deepcopy(COMPONENTS)
-    vim.list_extend(components, diagnostics.components())
-
-    local task = overseer.new_task({
-        name = opts.label,
-        cmd = { 'cmake' },
-        args = M.args(),
-        components = components,
-    })
-
-    task:subscribe('on_complete', function(_, status)
-        if status == 'SUCCESS' then
+    build_first.run(M.task(opts), function(ok)
+        if ok then
             on_success()
-        else
-            vim.notify(opts.failure, vim.log.levels.ERROR, { title = opts.title })
         end
-        -- A truthy return unsubscribes, which one build is done with either way.
-        return true
     end)
-    task:start()
 end
 
 return M

@@ -1,11 +1,11 @@
 -- Debugging a cargo target.
 --
--- What is launched is whatever qss_nvim.cargo.state has selected, and the build
--- runs here rather than through overseer's preLaunchTask: that mechanism
--- resolves a template by name, and the builtin "cargo build" template takes no
+-- What is launched is whatever qss_nvim.cargo.state has selected, built first
+-- in the profile it is selected in. The builtin "cargo build" template takes no
 -- profile, no features and no package, so it would build a debug binary while
 -- the launch went looking for a release one.
 
+local build_first = require('qss_nvim.overseer.build_first')
 local dap = require('dap')
 local metadata = require('qss_nvim.cargo.metadata')
 local state = require('qss_nvim.cargo.state')
@@ -100,70 +100,30 @@ local function choose_target(ask, on_chosen)
         end)
 end
 
---- The build speaks up only when it fails, because a debug session starting is
---- all the success anyone needs to see.
-local BUILD_COMPONENTS = {
-    'on_exit_set_status',
-    { 'on_complete_notify',  statuses = { 'FAILURE' } },
-    { 'on_complete_dispose', require_view = { 'FAILURE' } },
-}
-
---- Build what is selected, in the profile and for the triple it is selected in.
----@param on_done fun(ok: boolean)
-local function build(on_done)
-    local overseer = require('overseer')
-
-    local task = overseer.new_task({
-        name = 'cargo build (before debug)',
-        cmd = { 'cargo' },
-        args = state.build_args(),
-        components = BUILD_COMPONENTS,
-    })
-
-    task:subscribe('on_complete', function(_, status)
-        on_done(status == 'SUCCESS')
-        -- A truthy return unsubscribes, which one build is done with either way.
-        return true
-    end)
-    task:start()
-end
-
---- Resolve the program to launch, building it first.
----
---- nvim-dap resumes a coroutine returned by a configuration value, so the
---- launch waits here while the build runs, and gives up when it fails instead
---- of attaching to whatever the last build happened to leave behind.
+--- Build what is selected, in the profile and for the triple it is selected
+--- in, then launch what that build produced.
 ---@param ask boolean ask for the target even when one is remembered
 ---@return fun(): thread
 local function launcher(ask)
-    return function()
-        return coroutine.create(function(dap_co)
+    return build_first.program({
+        title = TITLE,
+        choose = function(on_chosen)
             choose_target(ask, function(target)
-                if not target then
-                    coroutine.resume(dap_co, dap.ABORT)
-                    return
-                end
-
-                build(function(ok)
-                    if not ok then
-                        vim.notify('the build failed, so nothing was launched',
-                            vim.log.levels.ERROR, { title = TITLE })
-                        coroutine.resume(dap_co, dap.ABORT)
-                        return
-                    end
-
-                    local artifact = state.artifact()
-                    if not artifact then
-                        vim.notify('cargo reports no target directory here',
-                            vim.log.levels.ERROR, { title = TITLE })
-                        coroutine.resume(dap_co, dap.ABORT)
-                        return
-                    end
-                    coroutine.resume(dap_co, artifact)
-                end)
+                on_chosen(target ~= nil)
             end)
-        end)
-    end
+        end,
+        build = function()
+            return {
+                name = 'cargo build (before debug)',
+                cmd = vim.list_extend({ 'cargo' }, state.build_args()),
+                failure = 'the build failed, so nothing was launched',
+                title = TITLE,
+            }
+        end,
+        program = function()
+            return state.artifact(), 'cargo reports no target directory here'
+        end,
+    })
 end
 
 ---@return string[]

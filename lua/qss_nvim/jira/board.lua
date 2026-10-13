@@ -158,9 +158,6 @@ end
 ---@field time_len integer? byte length of the estimates
 ---@field time_hl string? a highlight for the estimates
 
--- The day Jira counts in, as sprint.lua does.
-local DAY = 8 * 3600
-
 --- `<remaining> / <original>`, as Jira writes them (`1d 2h`), with `-` for an
 --- estimate nobody set. The dash is one byte, so the column pads evenly.
 ---@param issue table
@@ -175,10 +172,11 @@ local function time_of(issue)
 
     local remaining = tracking.remainingEstimateSeconds or 0
     local original = tracking.originalEstimateSeconds or 0
+    local day = config.day_seconds()
     if remaining == 0 then
         return text, 'QssJiraEstimateNone'
     end
-    if original >= DAY and remaining < DAY then
+    if original >= day and remaining < day then
         return text, 'QssJiraEstimateLow'
     end
     return text, nil

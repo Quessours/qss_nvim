@@ -2,6 +2,9 @@ return {
     'stevearc/overseer.nvim',
     event = 'VeryLazy',
     opts = {
+        -- Debug configurations build through qss_nvim.overseer.build_first,
+        -- so nvim-dap needs no preLaunchTask support.
+        dap = false,
         component_aliases = {
             default = {
                 'on_exit_set_status',

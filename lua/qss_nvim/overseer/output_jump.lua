@@ -63,7 +63,7 @@ end
 ---@return qss.overseer.Location?
 local function location_in(task, line)
     for path, lnum, col in line:gmatch(LOCATION) do
-        local line_number = tonumber(lnum)
+        local line_number = tonumber(lnum) --[[@as integer]]
         local filename = parsed_filename(task, path, line_number) or existing_file(task, path)
         if filename then
             return { filename = filename, lnum = line_number, col = tonumber(col) }
