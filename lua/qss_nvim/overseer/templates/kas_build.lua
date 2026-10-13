@@ -2,9 +2,6 @@ local project = require('qss_nvim.kas.project')
 local targets = require('qss_nvim.kas.targets')
 local template = require('qss_nvim.kas.template')
 
--- What `kas build` does with no --target: build the targets the config itself
--- declares. It is the common case, so it is the default, and an enum parameter
--- cannot default to a value that is not one of its choices.
 local CONFIG_TARGETS = '(config targets)'
 
 return {

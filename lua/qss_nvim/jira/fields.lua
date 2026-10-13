@@ -31,6 +31,10 @@ function M.render(value)
     if type(value) ~= 'table' then
         return tostring(value)
     end
+    if value.originalEstimate ~= nil or value.remainingEstimate ~= nil then
+        return ('original %s · remaining %s'):format(value.originalEstimate or '—',
+            value.remainingEstimate or '—')
+    end
     if value.type == 'doc' then
         local lines = require('qss_nvim.jira.adf').to_markdown(value)
         return table.concat(lines, ' '):sub(1, 120)

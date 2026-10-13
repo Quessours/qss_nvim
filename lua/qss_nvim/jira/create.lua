@@ -20,8 +20,10 @@ local TITLE = 'Jira'
 local cache = require('qss_nvim.jira.cache')
 local config = require('qss_nvim.jira.config')
 local edit = require('qss_nvim.jira.edit')
+local fields_module = require('qss_nvim.jira.fields')
 local form = require('qss_nvim.jira.form')
 local http = require('qss_nvim.jira.http')
+local template_module = require('qss_nvim.jira.template')
 local utils = require('qss_nvim.utils')
 
 -- The same five minutes editmeta is kept for. A create screen changes about as
@@ -101,6 +103,7 @@ function M.fields(project, type_id, callback)
                     operations = described.operations or {},
                 }
             end
+            edit.add_time_tracking(fields)
             cache.set(cache_key, fields, META_TTL)
             callback(fields)
         end)
@@ -129,7 +132,17 @@ end
 ---@param project string
 ---@param type_id string
 ---@param type_name string
-local function submit(drawn, buffer, project, type_id, type_name)
+---@param template qss.jira.Template? the form an automation writes over the description
+local function submit(drawn, buffer, project, type_id, type_name, template)
+    -- The form stays on screen until the sprint and the description are done,
+    -- which takes up to half a minute with a template. A second <C-s> in that
+    -- time made a second issue.
+    if drawn.sent then
+        local message = drawn.key and ('%s already exists. This form will not create it again.'):format(drawn.key)
+            or 'the issue is on its way to Jira'
+        return notify(message, vim.log.levels.WARN)
+    end
+
     local empty = form.missing(drawn)
     if #empty > 0 then
         return notify(('%s still needs %s'):format(type_name, table.concat(empty, ', ')),
@@ -140,21 +153,49 @@ local function submit(drawn, buffer, project, type_id, type_name)
     fields.project = { key = project }
     fields.issuetype = { id = type_id }
 
+    -- The form left as it opened is what the automation writes anyway, with
+    -- the colours markdown cannot hold.
+    local kept_description = template and drawn.touched.description and fields.description or nil
+    if template and not kept_description then
+        fields.description = nil
+    end
+
+    drawn.sent = true
     http.jira_post('/rest/api/3/issue', { fields = fields }, function(decoded)
         local key = decoded.key
+        drawn.key = key
         cache.invalidate_prefix('issues.')
 
         if not key then
-            return notify('the issue was created, but its key was not in the answer', vim.log.levels.WARN)
+            -- Nothing to hand over to, and the form must not stay up to be sent
+            -- a second time.
+            if vim.api.nvim_buf_is_valid(buffer) then
+                vim.api.nvim_buf_delete(buffer, { force = true })
+            end
+            return notify('the issue was created, but its key was not in the answer. Find it on the board.',
+                vim.log.levels.WARN)
         end
         notify(('%s created'):format(key), vim.log.levels.INFO)
 
-        if sprint then
-            return edit.write_sprint(key, sprint, function()
-                hand_over(project, key, buffer)
-            end)
+        -- The issue exists from here on, so a step after it that fails still
+        -- closes the form: what failed is reported, and the issue is fixed in
+        -- its own buffer.
+        local function open_issue()
+            hand_over(project, key, buffer)
         end
-        hand_over(project, key, buffer)
+        local function finish()
+            if sprint then
+                return edit.write_sprint(key, sprint, open_issue, open_issue)
+            end
+            open_issue()
+        end
+
+        if kept_description then
+            return template_module.restore(key, template, kept_description, finish)
+        end
+        finish()
+    end, function()
+        drawn.sent = false
     end)
 end
 
@@ -200,26 +241,33 @@ function M.adopt(buffer, type_id)
         end
 
         M.fields(project, type_id, function(fields)
-            local options = config.create_options(project)
-            local hidden = vim.list_extend(vim.deepcopy(SKIPPED), options.hidden)
+            template_module.find(project, type_id, function(template)
+                local options = config.create_options(project)
+                local hidden = vim.list_extend(vim.deepcopy(SKIPPED), options.hidden)
 
-            ---@type qss.jira.FormSpec
-            local spec = {
-                target = { project = project, label = ('the new %s'):format(name) },
-                fields = form.ordered(fields, { order = options.order, hidden = hidden }),
-                draft = {},
-                heading = {
-                    ('# New %s in %s'):format(name, project),
-                    '  i or <CR> fills the field under the cursor · <C-s> creates · q drops',
-                    '',
-                },
-                on_submit = function(drawn, drawn_buffer)
-                    submit(drawn, drawn_buffer, project, type_id, name)
-                end,
-            }
+                ---@type qss.jira.FormSpec
+                local spec = {
+                    target = { project = project, label = ('the new %s'):format(name) },
+                    fields = form.ordered(fields, { order = options.order, hidden = hidden }),
+                    draft = {},
+                    heading = {
+                        ('# New %s in %s'):format(name, project),
+                        '  i or <CR> fills the field under the cursor · <C-s> creates · q drops',
+                        '',
+                    },
+                    on_submit = function(drawn, drawn_buffer)
+                        submit(drawn, drawn_buffer, project, type_id, name, template)
+                    end,
+                }
 
-            form.apply_defaults(spec, options.defaults, function()
-                form.adopt(buffer, spec)
+                if template then
+                    local description = require('qss_nvim.jira.adf').to_adf(template.lines, {})
+                    spec.draft.description = { value = description, text = fields_module.render(description) }
+                end
+
+                form.apply_defaults(spec, options.defaults, function()
+                    form.adopt(buffer, spec)
+                end)
             end)
         end)
     end)

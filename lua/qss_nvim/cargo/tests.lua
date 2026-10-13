@@ -10,6 +10,7 @@
 local metadata = require('qss_nvim.cargo.metadata')
 local project = require('qss_nvim.cargo.project')
 local state = require('qss_nvim.cargo.state')
+local strategy = require('qss_nvim.overseer.strategy')
 local utils = require('qss_nvim.utils')
 
 local cache = require('qss_nvim.cache').store('qss_cargo')
@@ -215,6 +216,7 @@ local function run(cases)
         name = label,
         cmd = { 'cargo' },
         args = run_args(cases),
+        strategy = strategy.tests,
         components = M.components,
     })
 

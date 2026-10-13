@@ -7,6 +7,7 @@
 -- carries the current value, the help string and the advanced flag, which a
 -- menu needs anyway.
 
+local presets = require('qss_nvim.cmake-tools.presets')
 local state = require('qss_nvim.cmake-tools.state')
 
 local M = {}
@@ -38,6 +39,42 @@ local pending_dir = nil
 
 --- ccmake starts with the advanced entries hidden, and so does this.
 local show_advanced = false
+
+--- What the selected configure preset sets, read again on each pick. Nil when
+--- no preset is in use.
+---@type qss.cmake.PresetOwners?
+local owners = nil
+
+--- Where an edit has to go to survive the next configure run. Nil when no
+--- preset sets the variable: the cache keeps a -D then. A preset in
+--- CMakeUserPresets.json takes the value itself. One in CMakePresets.json is
+--- shared, so the override goes into the selected preset if that one is a user
+--- preset, and the entry is locked if it is not.
+---@param name string
+---@return qss.cmake.RawPreset? target, qss.cmake.PresetValue? set_by
+local function preset_target(name)
+    local set_by = owners and owners.values[name]
+    if not (owners and set_by) then
+        return nil, nil
+    end
+    if set_by.preset.user then
+        return set_by.preset, set_by
+    end
+    if owners.selected.user then
+        return owners.selected, set_by
+    end
+    return nil, set_by
+end
+
+---@param entry qss.cmake.CacheEntry
+---@return qss.cmake.PresetValue? set_by the preset that holds the value, when nothing here can change it
+local function locked_by(entry)
+    local target, set_by = preset_target(entry.name)
+    if target then
+        return nil
+    end
+    return set_by
+end
 
 ---@param value string
 ---@return boolean
@@ -148,6 +185,13 @@ end
 ---@param entry qss.cmake.CacheEntry
 ---@param on_done fun()
 local function edit(entry, on_done)
+    local set_by = locked_by(entry)
+    if set_by then
+        return vim.notify(('%s is set by preset %s in CMakePresets.json. Select a preset from '
+            .. 'CMakeUserPresets.json that inherits it to change the value.')
+            :format(entry.name, set_by.preset.name), vim.log.levels.WARN, { title = 'CMake' })
+    end
+
     local value = current(entry)
 
     if is_switch(entry) then
@@ -182,10 +226,61 @@ local function configure_args()
     return { '-S', '.', '-B', state.build_dir() }
 end
 
+--- A preset that wrote `true` gets a boolean back rather than the string "ON".
+---@param raw any the value the preset holds now
+---@param value string
+---@return any
+local function json_value(raw, value)
+    local form = type(raw) == 'table' and raw.value or raw
+    if type(form) == 'boolean' then
+        return is_true(value)
+    end
+    return value
+end
+
+--- Each edit that a preset would undo goes into that preset, one jq run per
+--- file. The -D on the configure run still carries every edit, so this only
+--- decides whether the value outlives the run.
+---@return boolean ok
+local function write_presets()
+    local by_file = {}
+    for name, value in pairs(pending) do
+        local target, set_by = preset_target(name)
+        if target and set_by then
+            by_file[target.file] = by_file[target.file] or {}
+            table.insert(by_file[target.file], {
+                preset = target.name,
+                name = name,
+                value = json_value(set_by.raw, value),
+            })
+        end
+    end
+
+    for file, edits in pairs(by_file) do
+        local ok, err = presets.write(file, edits)
+        if not ok then
+            vim.notify(('could not update %s: %s'):format(file, err),
+                vim.log.levels.ERROR, { title = 'CMake' })
+            return false
+        end
+        local names = vim.tbl_map(function(change)
+            return change.name
+        end, edits)
+        vim.notify(('%s: %s'):format(vim.fs.basename(file), table.concat(names, ', ')),
+            vim.log.levels.INFO, { title = 'CMake preset updated' })
+    end
+    -- A buffer that shows the file would otherwise keep the old text.
+    vim.cmd.checktime()
+    return true
+end
+
 local function apply()
     local count = vim.tbl_count(pending)
     if count == 0 then
         return vim.notify('no option was changed', vim.log.levels.WARN, { title = 'CMake' })
+    end
+    if not write_presets() then
+        return
     end
 
     local args = configure_args()
@@ -241,6 +336,17 @@ local function describe(entry)
     if entry.advanced then
         lines[#lines + 1] = '- advanced'
     end
+
+    local target, set_by = preset_target(entry.name)
+    if set_by then
+        lines[#lines + 1] = ('- set by preset `%s` in %s'):format(set_by.preset.name,
+            vim.fs.basename(set_by.preset.file))
+    end
+    if target and set_by and target ~= set_by.preset then
+        lines[#lines + 1] = ('- an edit overrides it in preset `%s`'):format(target.name)
+    elseif set_by and not target then
+        lines[#lines + 1] = '- locked: the preset sets it again on every configure run'
+    end
     return table.concat(lines, '\n')
 end
 
@@ -249,7 +355,9 @@ end
 local function format_entry(item)
     local entry = item.entry
     local staged = pending[entry.name]
-    local line = { staged and { '● ', 'SnacksPickerGitStatusModified' } or { '  ' } }
+    local line = { staged and { '● ', 'SnacksPickerGitStatusModified' }
+        or locked_by(entry) and { '⊘ ', 'SnacksPickerComment' }
+        or { '  ' } }
 
     if is_switch(entry) then
         local on = is_true(current(entry))
@@ -310,6 +418,8 @@ function M.pick()
     if pending_dir ~= dir then
         pending, pending_dir = {}, dir
     end
+    local preset = state.usable_preset('configure')
+    owners = preset and presets.owners(preset) or nil
 
     local entries = read_cache(dir .. '/CMakeCache.txt')
     if not entries then

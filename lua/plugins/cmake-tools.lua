@@ -36,6 +36,9 @@ return {
         cmake_runner = {
             name = "overseer",
             opts = {
+                new_task_opts = {
+                    strategy = require("qss_nvim.overseer.strategy").program,
+                },
                 on_new_task = function()
                     require("overseer").open({ enter = false })
                 end,

@@ -17,6 +17,39 @@ local http = require('qss_nvim.jira.http')
 local utils = require('qss_nvim.utils')
 
 local namespace = vim.api.nvim_create_namespace('qss.jira.board')
+local clock_namespace = vim.api.nvim_create_namespace('qss.jira.standup')
+
+local LIST_LEGEND = '  i or <CR> acts   e, v or gd open   t transition   o browser   y yank   r reload   q close'
+local BOARD_LEGEND = '  i or <CR> acts   e, v or gd open   t transition   o browser   y yank   s standup   r reload   q close'
+local READY_LEGEND = '  > start   c countdown   T time per person   x absent or back   S shuffle   s cancel   i or <CR> acts   e, v or gd open   t transition   r reload'
+local STANDUP_LEGEND ='  < > previous or next person   T time per person   x absent or back   S shuffle   s end the standup   i or <CR> acts   e, v or gd open   t transition   r reload'
+
+---@class qss.jira.Person
+---@field id string? the account id, absent for the unassigned issues
+---@field name string
+---@field absent boolean? skipped by < and >, but kept in its place in the list
+
+---@class qss.jira.Standup
+---@field people qss.jira.Person[]
+---@field index integer the person speaking, 0 until the standup starts
+---@field since integer? when the standup started, in seconds
+---@field person_since integer? when the person speaking began, in seconds
+---@field start_at integer? when the countdown before the start runs out, in seconds
+---@field announced boolean? the end of the countdown was announced
+---@field person_announced boolean? the person speaking was told they are out of time
+---@field timer uv.uv_timer_t? the clock, running during the countdown and the standup
+
+---@type qss.jira.Standup?
+local standup
+
+-- Set when a standup is asked for before the board has anything to walk
+-- through, so it begins as soon as the board is drawn.
+local standup_pending = false
+
+--- What the board last fetched, so that moving to the next person redraws at
+--- once rather than asking Jira again. `r` still fetches.
+---@type { columns: qss.jira.Column[], issues: table[], account_id: string?, sprint: { name: string } }?
+local latest
 
 -- A day, because a board gains a column about as often as a project is created.
 local COLUMNS_TTL = 86400
@@ -98,12 +131,19 @@ end
 ---@param sprint_id integer
 ---@param callback fun(issues: table[])
 local function sprint_issues(board_id, sprint_id, callback)
-    local path = ('/rest/agile/1.0/board/%s/sprint/%d/issue?maxResults=200&fields=summary,status,assignee,issuetype,priority')
+    local path = ('/rest/agile/1.0/board/%s/sprint/%d/issue?maxResults=200&fields=summary,status,assignee,issuetype,priority,timetracking')
         :format(board_id, sprint_id)
 
     http.jira_rest(path, function(decoded)
         callback(decoded.issues or {})
     end)
+end
+
+---@param issue table
+---@return table? assignee
+local function assignee_of(issue)
+    local assignee = issue.fields.assignee
+    return type(assignee) == 'table' and assignee or nil
 end
 
 ---@class qss.jira.BoardRow
@@ -112,6 +152,37 @@ end
 ---@field mine boolean
 ---@field key_col integer? byte offset of the key
 ---@field dim_to integer? byte offset where the summary starts
+---@field person integer? the index of the person on a line of the standup list
+---@field hl string? a highlight for the whole line
+---@field time_col integer? byte offset of the estimates
+---@field time_len integer? byte length of the estimates
+---@field time_hl string? a highlight for the estimates
+
+-- The day Jira counts in, as sprint.lua does.
+local DAY = 8 * 3600
+
+--- `<remaining> / <original>`, as Jira writes them (`1d 2h`), with `-` for an
+--- estimate nobody set. The dash is one byte, so the column pads evenly.
+---@param issue table
+---@return string text
+---@return string? hl red with nothing left, orange with less than a day left of a task of a day or more
+local function time_of(issue)
+    local tracking = issue.fields.timetracking
+    if type(tracking) ~= 'table' then
+        tracking = {}
+    end
+    local text = ('%s / %s'):format(tracking.remainingEstimate or '-', tracking.originalEstimate or '-')
+
+    local remaining = tracking.remainingEstimateSeconds or 0
+    local original = tracking.originalEstimateSeconds or 0
+    if remaining == 0 then
+        return text, 'QssJiraEstimateNone'
+    end
+    if original >= DAY and remaining < DAY then
+        return text, 'QssJiraEstimateLow'
+    end
+    return text, nil
+end
 
 ---@param columns qss.jira.Column[]
 ---@param issues table[]
@@ -150,7 +221,7 @@ local function rows_of(columns, issues, account_id)
 
         for _, issue in ipairs(bucket) do
             local fields = issue.fields
-            local assigned = type(fields.assignee) == 'table' and fields.assignee or nil
+            local assigned = assignee_of(issue)
             local assignee = assigned and assigned.displayName or 'unassigned'
             local mine = account_id ~= nil and assigned ~= nil and assigned.accountId == account_id
 
@@ -160,6 +231,9 @@ local function rows_of(columns, issues, account_id)
             local marker = mine and '▌' or ' '
             local prefix = ('%s %-11s'):format(marker, issue.key)
             local middle = ('%-14s %-20s '):format(fields.issuetype.name:sub(1, 14), assignee:sub(1, 20))
+            local time, time_hl = time_of(issue)
+            local time_col = #prefix + 1 + #middle
+            middle = ('%s%-17s '):format(middle, time)
 
             rows[#rows + 1] = {
                 text = ('%s %s%s'):format(prefix, middle, fields.summary),
@@ -167,6 +241,9 @@ local function rows_of(columns, issues, account_id)
                 mine = mine,
                 key_col = #marker + 1,
                 dim_to = #prefix + 1 + #middle,
+                time_col = time_col,
+                time_len = #time,
+                time_hl = time_hl,
             }
         end
         rows[#rows + 1] = { text = '', mine = false }
@@ -187,18 +264,45 @@ end
 ---@param offset integer lines drawn above the first row
 local function paint(buffer, rows, offset)
     vim.api.nvim_buf_clear_namespace(buffer, namespace, 0, -1)
+    -- Bright enough to read on a black background.
+    vim.api.nvim_set_hl(0, 'QssJiraEstimateLow', { fg = '#ff9933', default = true })
+    vim.api.nvim_set_hl(0, 'QssJiraEstimateNone', { fg = '#ff5f5f', default = true })
 
     for index, row in ipairs(rows) do
+        if row.hl then
+            vim.api.nvim_buf_set_extmark(buffer, namespace, index - 1 + offset, 0, {
+                end_col = #row.text,
+                hl_group = row.hl,
+            })
+        end
         if row.key then
             local line = index - 1 + offset
             vim.api.nvim_buf_set_extmark(buffer, namespace, line, row.key_col, {
                 end_col = row.key_col + #row.key,
                 hl_group = row.mine and 'DiagnosticOk' or 'Identifier',
             })
-            vim.api.nvim_buf_set_extmark(buffer, namespace, line, row.key_col + #row.key, {
-                end_col = math.min(row.dim_to, #row.text),
-                hl_group = 'Comment',
-            })
+            local dim_to = math.min(row.dim_to, #row.text)
+            if not row.time_hl then
+                vim.api.nvim_buf_set_extmark(buffer, namespace, line, row.key_col + #row.key, {
+                    end_col = dim_to,
+                    hl_group = 'Comment',
+                })
+            else
+                -- The dimming goes around a colored estimate rather than under it.
+                local time_end = row.time_col + row.time_len
+                vim.api.nvim_buf_set_extmark(buffer, namespace, line, row.key_col + #row.key, {
+                    end_col = row.time_col,
+                    hl_group = 'Comment',
+                })
+                vim.api.nvim_buf_set_extmark(buffer, namespace, line, row.time_col, {
+                    end_col = time_end,
+                    hl_group = row.time_hl,
+                })
+                vim.api.nvim_buf_set_extmark(buffer, namespace, line, time_end, {
+                    end_col = dim_to,
+                    hl_group = 'Comment',
+                })
+            end
         end
     end
 end
@@ -276,6 +380,7 @@ end
 ---@field name string the buffer name
 ---@field title string
 ---@field rows qss.jira.BoardRow[]
+---@field legend string? the key legend, LIST_LEGEND when absent
 ---@field focus boolean
 ---@field reload fun()
 
@@ -291,7 +396,7 @@ local function show(view)
     -- buffer of one issue. The legend keeps them from being a guess.
     local lines = {
         ('# %s'):format(view.title),
-        '  i or <CR> acts   e, v or gd open   t transition   o browser   y yank   r reload   q close',
+        view.legend or LIST_LEGEND,
         '',
     }
     local offset = #lines
@@ -347,7 +452,518 @@ function M.adopt(buffer, which)
     if which == 'backlog' then
         return M.backlog({ focus = false })
     end
+
+    -- s on the backlog would walk nobody: a backlog has no sprint to report on.
+    vim.keymap.set('n', 's', M.standup, { buffer = buffer, desc = 'Start or end the standup' })
+    vim.keymap.set('n', '>', function() M.step(1) end, { buffer = buffer, desc = 'Next person' })
+    vim.keymap.set('n', '<', function() M.step(-1) end, { buffer = buffer, desc = 'Previous person' })
+    vim.keymap.set('n', 'S', M.shuffle, { buffer = buffer, desc = 'Shuffle the people left' })
+    vim.keymap.set('n', 'x', M.toggle_absent, { buffer = buffer, desc = 'Mark absent or back' })
+    vim.keymap.set('n', 'c', M.countdown, { buffer = buffer, desc = 'Countdown before the start' })
+    vim.keymap.set('n', 'T', M.person_time, { buffer = buffer, desc = 'Time per person' })
+    vim.api.nvim_create_autocmd('BufWipeout', {
+        buffer = buffer,
+        once = true,
+        desc = 'Stop the standup clock with the board',
+        callback = function()
+            if standup and standup.timer then
+                standup.timer:close()
+            end
+            standup = nil
+            require('qss_nvim.jira.stop_sign').hide()
+        end,
+    })
+
     M.open({ focus = false })
+end
+
+---@param seconds integer
+---@return string
+local function clock(seconds)
+    return ('%02d:%02d'):format(math.floor(seconds / 60), seconds % 60)
+end
+
+-- The time per person last asked for with `T`, kept for the next standups of
+-- the session.
+---@type integer?
+local person_time
+
+---@return integer seconds 0 for no limit
+local function person_limit()
+    return person_time or config.options.standup_person_time or 0
+end
+
+--- The countdown before the start, then the time of the person speaking and of
+--- the whole standup, at the end of the title line. Virtual text, so the clock
+--- ticks without rewriting the buffer under the cursor every second.
+local function paint_clock()
+    local buffer = existing_buffer(BOARD)
+    if not buffer then
+        return
+    end
+    vim.api.nvim_buf_clear_namespace(buffer, clock_namespace, 0, -1)
+    if not standup then
+        return
+    end
+
+    local now = os.time()
+    local text, hl
+    if standup.since and standup.person_since then
+        local spoken = now - standup.person_since
+        local limit = person_limit()
+        local total = clock(now - standup.since)
+        if limit == 0 then
+            text, hl = ('   %s   total %s'):format(clock(spoken), total), 'DiagnosticInfo'
+        elseif spoken < limit then
+            text, hl = ('   %s / %s   total %s'):format(clock(spoken), clock(limit), total), 'DiagnosticInfo'
+        else
+            text = ('   %s / %s, out of time   total %s'):format(clock(spoken), clock(limit), total)
+            hl = 'DiagnosticError'
+            if not standup.person_announced then
+                standup.person_announced = true
+                notify(('%s is out of time. > gives the word to the next person, <Esc> hushes the sign.')
+                    :format(standup.people[standup.index].name), vim.log.levels.WARN)
+                require('qss_nvim.jira.stop_sign').show()
+            end
+        end
+    elseif standup.start_at and now < standup.start_at then
+        text, hl = ('   starts in %s'):format(clock(standup.start_at - now)), 'DiagnosticInfo'
+    elseif standup.start_at then
+        text, hl = ('   time to start, %s late'):format(clock(now - standup.start_at)), 'DiagnosticWarn'
+        if not standup.announced then
+            standup.announced = true
+            notify('time to start the standup. > gives the word to the first person, <Esc> hushes the sign.',
+                vim.log.levels.WARN)
+            require('qss_nvim.jira.stop_sign').show()
+        end
+    else
+        return
+    end
+
+    vim.api.nvim_buf_set_extmark(buffer, clock_namespace, 0, 0, {
+        virt_text = { { text, hl } },
+        virt_text_pos = 'eol',
+    })
+end
+
+---@return uv.uv_timer_t
+local function start_clock()
+    local timer = assert(vim.uv.new_timer())
+    timer:start(1000, 1000, vim.schedule_wrap(paint_clock))
+    return timer
+end
+
+--- The standup order, one line per person, so that who spoke, who speaks and
+--- who is next stay on screen, and `x` has a line to act on.
+---@param current qss.jira.Standup
+---@return qss.jira.BoardRow[]
+local function people_rows(current)
+    local present = 0
+    for _, person in ipairs(current.people) do
+        present = present + (person.absent and 0 or 1)
+    end
+
+    local rows = {
+        { text = ('## People  (%d present of %d)'):format(present, #current.people), mine = false },
+        { text = '', mine = false },
+    }
+    for index, person in ipairs(current.people) do
+        local marker, hl = '·', nil
+        if person.absent then
+            marker, hl = '✗', 'DiagnosticWarn'
+        elseif index == current.index then
+            marker, hl = '▶', 'DiagnosticOk'
+        elseif index < current.index then
+            marker, hl = '✓', 'Comment'
+        end
+        rows[#rows + 1] = {
+            text = ('  %s %s%s'):format(marker, person.name, person.absent and '  (absent)' or ''),
+            mine = false,
+            person = index,
+            hl = hl,
+        }
+    end
+    rows[#rows + 1] = { text = '', mine = false }
+    return rows
+end
+
+-- Filled by draw: which person each line of the standup list shows, and the
+-- line of the first issue, both 1-based.
+---@type table<integer, integer>
+local person_at = {}
+local first_issue_line = 1
+
+--- Draw what the board last fetched, narrowed to one person during a standup.
+---@param focus boolean
+local function draw(focus)
+    if not latest then
+        return
+    end
+
+    local issues = latest.issues
+    local title = ('%s  (%d issues)'):format(latest.sprint.name, #issues)
+    local legend = BOARD_LEGEND
+    local rows = {}
+    local person = standup and standup.people[standup.index]
+    if person then
+        issues = vim.tbl_filter(function(issue)
+            local assigned = assignee_of(issue)
+            return (assigned and assigned.accountId) == person.id
+        end, issues)
+        title = ('Standup · %s  (%d issues)'):format(person.name, #issues)
+        legend = STANDUP_LEGEND
+    elseif standup then
+        title = ('Standup, not started · %s  (%d issues)'):format(latest.sprint.name, #issues)
+        legend = READY_LEGEND
+    end
+    if standup then
+        rows = people_rows(standup)
+    end
+    vim.list_extend(rows, rows_of(latest.columns, issues, latest.account_id))
+
+    -- The three lines show draws above the rows: the title, the legend and a
+    -- blank line.
+    person_at = {}
+    first_issue_line = 1
+    for index, row in ipairs(rows) do
+        if row.person then
+            person_at[index + 3] = row.person
+        end
+        if row.key and first_issue_line == 1 then
+            first_issue_line = index + 3
+        end
+    end
+
+    show({
+        name = BOARD,
+        title = title,
+        legend = legend,
+        rows = rows,
+        focus = focus,
+        reload = function()
+            cache.invalidate_prefix('board.')
+            M.open()
+        end,
+    })
+    paint_clock()
+end
+
+--- Shuffle `list[from..to]` in place.
+---@param list any[]
+---@param from integer
+---@param to integer
+local function shuffle(list, from, to)
+    for index = to, from + 1, -1 do
+        local other = math.random(from, index)
+        list[index], list[other] = list[other], list[index]
+    end
+end
+
+--- Everyone with an issue in the sprint, in a random order as the Jira standup
+--- does, so the same person does not always speak first. The unassigned issues
+--- come last, because nobody speaks for them.
+---@param issues table[]
+---@return qss.jira.Person[]
+local function people_of(issues)
+    local seen = {}
+    local people = {}
+    local unassigned = false
+
+    for _, issue in ipairs(issues) do
+        local assigned = assignee_of(issue)
+        if not assigned then
+            unassigned = true
+        elseif not seen[assigned.accountId] then
+            seen[assigned.accountId] = true
+            people[#people + 1] = { id = assigned.accountId, name = assigned.displayName }
+        end
+    end
+
+    shuffle(people, 1, #people)
+
+    if unassigned then
+        people[#people + 1] = { name = 'unassigned' }
+    end
+    return people
+end
+
+-- The countdown last asked for, offered again by the next prompt.
+local last_countdown
+
+--- `90`, `90s`, `2m`, `1m30` or `1:30`. Empty means no countdown.
+---@param text string
+---@return integer? seconds
+local function parse_duration(text)
+    text = vim.trim(text)
+    if text == '' then
+        return 0
+    end
+    local minutes, seconds = text:match('^(%d+):(%d%d?)$')
+    if not minutes then
+        minutes, seconds = text:match('^(%d+)m(%d*)s?$')
+    end
+    if minutes then
+        return tonumber(minutes) * 60 + (tonumber(seconds) or 0)
+    end
+    seconds = text:match('^(%d+)s?$')
+    return seconds and tonumber(seconds) or nil
+end
+
+---@param seconds integer
+---@return string
+local function format_duration(seconds)
+    if seconds == 0 then
+        return ''
+    end
+    local minutes, rest = math.floor(seconds / 60), seconds % 60
+    if minutes == 0 then
+        return ('%ds'):format(rest)
+    end
+    return rest == 0 and ('%dm'):format(minutes) or ('%dm%02d'):format(minutes, rest)
+end
+
+--- Run the countdown from now, or drop it with 0.
+---@param current qss.jira.Standup
+---@param seconds integer
+local function set_countdown(current, seconds)
+    last_countdown = seconds
+    current.announced = false
+    require('qss_nvim.jira.stop_sign').hide()
+
+    if seconds == 0 then
+        current.start_at = nil
+        if current.timer then
+            current.timer:close()
+            current.timer = nil
+        end
+    else
+        current.start_at = os.time() + seconds
+        current.timer = current.timer or start_clock()
+    end
+    paint_clock()
+end
+
+--- Ask for a duration, asking again until the answer reads as one.
+---@param what string
+---@param offered integer seconds
+---@param on_seconds fun(seconds: integer) not called when the prompt is cancelled
+local function ask_duration(what, offered, on_seconds)
+    vim.ui.input({
+        prompt = ('%s (90, 2m, 1:30, empty for none): '):format(what),
+        default = format_duration(offered),
+    }, function(answer)
+        if answer == nil then
+            return
+        end
+        local seconds = parse_duration(answer)
+        if not seconds then
+            notify(('%s is not a duration'):format(answer), vim.log.levels.WARN)
+            return ask_duration(what, offered, on_seconds)
+        end
+        on_seconds(seconds)
+    end)
+end
+
+---@param current qss.jira.Standup
+local function ask_countdown(current)
+    local offered = last_countdown or config.options.standup_countdown or 0
+    ask_duration('Countdown before the standup', offered, function(seconds)
+        -- The standup ended or started while the prompt was up.
+        if standup ~= current or current.since then
+            return
+        end
+        set_countdown(current, seconds)
+    end)
+end
+
+--- Change the time each person has. It applies to the person speaking too, so
+--- raising it past what they have used hushes the sign.
+function M.person_time()
+    ask_duration('Time per person', person_limit(), function(seconds)
+        person_time = seconds
+        if standup and standup.person_since then
+            local spoken = os.time() - standup.person_since
+            if seconds == 0 or spoken < seconds then
+                standup.person_announced = false
+                require('qss_nvim.jira.stop_sign').hide()
+            end
+        end
+        paint_clock()
+    end)
+end
+
+--- Lay out the people without starting: nobody speaks and the clock stays at
+--- rest until `>`, so the people who are not there can be marked first.
+local function prepare_standup()
+    standup_pending = false
+    if not latest then
+        return
+    end
+
+    local people = people_of(latest.issues)
+    if #people == 0 then
+        return notify('the sprint has no issue, so there is nobody to walk through', vim.log.levels.WARN)
+    end
+
+    standup = { people = people, index = 0 }
+    draw(true)
+    ask_countdown(standup)
+end
+
+--- Ask the countdown again, before the standup starts.
+function M.countdown()
+    if not standup then
+        return notify('no standup is running. s starts one.', vim.log.levels.WARN)
+    end
+    if standup.since then
+        return notify('the standup already started', vim.log.levels.WARN)
+    end
+    ask_countdown(standup)
+end
+
+local function end_standup()
+    if not standup then
+        return
+    end
+    local since = standup.since
+    if standup.timer then
+        standup.timer:close()
+    end
+    standup = nil
+    require('qss_nvim.jira.stop_sign').hide()
+    if since then
+        notify(('the standup took %s'):format(clock(os.time() - since)), vim.log.levels.INFO)
+    end
+    draw(false)
+end
+
+--- The first person present from `from` on, walking by `by`.
+---@param current qss.jira.Standup
+---@param from integer
+---@param by integer 1 or -1
+---@return integer?
+local function present_from(current, from, by)
+    local index = from
+    while current.people[index] do
+        if not current.people[index].absent then
+            return index
+        end
+        index = index + by
+    end
+    return nil
+end
+
+--- Hand the word to the first person present from `from` on. With nobody
+--- present after the person speaking, the standup is over.
+---@param current qss.jira.Standup
+---@param from integer
+local function give_word(current, from)
+    local index = present_from(current, from, 1)
+    if not index and not current.since then
+        return notify('everybody is marked absent', vim.log.levels.WARN)
+    end
+    if not index then
+        return end_standup()
+    end
+
+    local now = os.time()
+    if not current.since then
+        current.since = now
+        current.timer = current.timer or start_clock()
+    end
+    require('qss_nvim.jira.stop_sign').hide()
+    current.index = index
+    current.person_since = now
+    current.person_announced = false
+    draw(false)
+
+    -- The first issue of the new person, rather than wherever the cursor was
+    -- left in a list that is now a different length.
+    local buffer = existing_buffer(BOARD)
+    if not buffer then
+        return
+    end
+    local first = math.min(first_issue_line, vim.api.nvim_buf_line_count(buffer))
+    for _, window in ipairs(vim.fn.win_findbuf(buffer)) do
+        vim.api.nvim_win_set_cursor(window, { first, 0 })
+    end
+end
+
+--- Get a standup ready on the running sprint, or end the one in progress. It
+--- starts on `>`.
+function M.standup()
+    if standup then
+        return end_standup()
+    end
+    if latest and existing_buffer(BOARD) then
+        return prepare_standup()
+    end
+    standup_pending = true
+    M.open()
+end
+
+--- Draw a new order for the people who have not spoken yet. Whoever spoke and
+--- whoever is speaking keep their place, and the unassigned issues stay last.
+function M.shuffle()
+    if not standup then
+        return notify('no standup is running. s starts one.', vim.log.levels.WARN)
+    end
+
+    local people = standup.people
+    local last = people[#people].id == nil and #people - 1 or #people
+    if last - standup.index < 2 then
+        return notify('nobody is left to shuffle', vim.log.levels.INFO)
+    end
+    shuffle(people, standup.index + 1, last)
+    draw(false)
+end
+
+--- Hand the word to the next person present, or back to the previous one. Past
+--- the last person, the standup is over.
+---@param by integer
+function M.step(by)
+    if not standup then
+        return notify('no standup is running. s starts one.', vim.log.levels.WARN)
+    end
+
+    if by > 0 then
+        return give_word(standup, standup.index + 1)
+    end
+    local index = present_from(standup, standup.index - 1, -1)
+    if index then
+        give_word(standup, index)
+    end
+end
+
+--- Mark the person on the line under the cursor absent, or back if they were.
+--- Off the list, it acts on the person speaking. An absent speaker hands the
+--- word on, and someone back after their turn went by speaks next.
+function M.toggle_absent()
+    if not standup then
+        return notify('no standup is running. s starts one.', vim.log.levels.WARN)
+    end
+
+    local index = person_at[vim.api.nvim_win_get_cursor(0)[1]] or standup.index
+    local person = standup.people[index]
+    if not person then
+        return notify('nobody speaks yet. Put the cursor on a person.', vim.log.levels.WARN)
+    end
+
+    if not person.absent then
+        person.absent = true
+        if index == standup.index then
+            return give_word(standup, index + 1)
+        end
+        return draw(false)
+    end
+
+    person.absent = false
+    if index < standup.index then
+        table.remove(standup.people, index)
+        standup.index = standup.index - 1
+        table.insert(standup.people, standup.index + 1, person)
+    end
+    draw(false)
 end
 
 --- Redraw whichever list view is on screen, and only those.
@@ -376,16 +992,11 @@ function M.open(options)
                 sprint_issues(board_id, sprint.id, function(issues)
                     local focus = not (options and options.focus == false)
                     with_account(function(account_id)
-                        show({
-                            name = BOARD,
-                            title = ('%s  (%d issues)'):format(sprint.name, #issues),
-                            rows = rows_of(columns, issues, account_id),
-                            focus = focus,
-                            reload = function()
-                                cache.invalidate_prefix('board.')
-                                M.open()
-                            end,
-                        })
+                        latest = { columns = columns, issues = issues, account_id = account_id, sprint = sprint }
+                        if standup_pending then
+                            return prepare_standup()
+                        end
+                        draw(focus)
                     end)
                 end)
             end)
@@ -432,7 +1043,7 @@ local function backlog_rows(issues, account_id)
 
     for _, issue in ipairs(issues) do
         local fields = issue.fields
-        local assigned = type(fields.assignee) == 'table' and fields.assignee or nil
+        local assigned = assignee_of(issue)
         local assignee = assigned and assigned.displayName or 'unassigned'
         local mine = account_id ~= nil and assigned ~= nil and assigned.accountId == account_id
 

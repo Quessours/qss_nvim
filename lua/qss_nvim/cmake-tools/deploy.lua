@@ -13,6 +13,7 @@ local devices = require('qss_nvim.remote.device')
 local findings = require('qss_nvim.findings')
 local remote_doctor = require('qss_nvim.remote.doctor')
 local state = require('qss_nvim.cmake-tools.state')
+local strategy = require('qss_nvim.overseer.strategy')
 
 local M = {}
 
@@ -274,6 +275,7 @@ function M.run(opts)
             cmd = devices.ssh_argv(device,
                 devices.remote_command(device, words, { before = device.before_run }),
                 { tty = true }),
+            strategy = strategy.program,
             components = vim.deepcopy(FINAL_COMPONENTS),
         })
         overseer.open({ enter = false, direction = 'bottom' })
@@ -383,6 +385,7 @@ function M.debug(opts)
             cmd = devices.ssh_argv(device,
                 devices.remote_command(device, words, { before = device.before_run }),
                 { tty = true }),
+            strategy = strategy.program,
             components = {
                 'on_exit_set_status',
                 { 'on_complete_notify', statuses = { 'FAILURE' } },

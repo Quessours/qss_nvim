@@ -1,5 +1,3 @@
--- What a build can be pointed at.
---
 -- Three sources, cheapest first. The `target` key of the kas config is the
 -- answer the project itself gives, and `kas dump` is what resolves it through
 -- the includes, so that one is asked for by name only: dump checks the
@@ -53,7 +51,6 @@ function M.remember(name, root)
     cache.set(cache.key(root, 'recent_targets'), kept)
 end
 
---- Every target worth offering, in the order a picker shows them.
 ---@param root string?
 ---@return qss.kas.Target[]
 function M.list(root)

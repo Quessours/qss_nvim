@@ -23,6 +23,7 @@ local M = {
     n = {
         -- Views
         ["<leader>jcs"] = { function() require('qss_nvim.jira.board').open() end, "Current sprint board" },
+        ["<leader>jsu"] = { function() require('qss_nvim.jira.board').standup() end, "Standup" },
         ["<leader>jS"] = { function() require('qss_nvim.jira.sprint').pick() end, "Show a sprint report" },
         ["<leader>jB"] = { function() require('qss_nvim.jira.board').backlog() end, "Backlog" },
         ["<leader>jmt"] = { function() picker().issues() end, "My tickets in the sprint" },

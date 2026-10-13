@@ -1,6 +1,3 @@
--- Overseer loads components by name from every lua/overseer/component/ on the
--- runtimepath, this one included.
---
 -- A kas-container build compiles inside the container, so every path gcc prints
 -- is a container path: /build/tmp/work/<machine>/<recipe>/<version>/git/src/foo.cpp.
 -- No such file exists here, so the diagnostic would land in an empty buffer of

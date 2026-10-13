@@ -42,6 +42,8 @@ end
 ---@class qss.jira.Form : qss.jira.FormSpec
 ---@field owners table<integer, qss.jira.EditField> which line carries which field
 ---@field touched table<string, boolean> the rows you filled on this form
+---@field sent boolean? sent with <C-s>, and cleared only when Jira refuses it
+---@field key string? the issue Jira made from this form
 ---@type table<integer, qss.jira.Form>
 local forms = {}
 

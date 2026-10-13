@@ -55,6 +55,10 @@ function M.compose(options)
         title = ('%s  (<C-s> send · q drop · / for panels and lists)'):format(options.title),
         title_pos = 'center',
     })
+    -- Wrapped on screen only: a real line break here would reach Jira as one.
+    vim.wo[window].wrap = true
+    vim.wo[window].linebreak = true
+    vim.wo[window].breakindent = true
 
     local function close()
         if vim.api.nvim_win_is_valid(window) then

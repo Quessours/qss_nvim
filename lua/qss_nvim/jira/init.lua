@@ -86,6 +86,12 @@ end, {
     desc = 'Draw the running sprint as a board',
 })
 
+vim.api.nvim_create_user_command('JiraStandup', function()
+    require('qss_nvim.jira.board').standup()
+end, {
+    desc = 'Walk the running sprint one person at a time, or end the walk',
+})
+
 vim.api.nvim_create_user_command('JiraIssues', function()
     picker.issues()
 end, {

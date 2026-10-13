@@ -23,6 +23,18 @@ M.options = {
     },
     -- Prefill an empty commit message with the issue key of the branch.
     commit_prefix = true,
+    -- The countdown, in seconds, that a standup offers before it starts, while
+    -- the people who are not there get marked. The prompt at the start of each
+    -- standup can change it. At zero it only says so: the standup starts on
+    -- `>`, never by itself. 0 offers no countdown.
+    standup_countdown = 120,
+    -- The time each person has to speak, in seconds. Past it, the clock turns
+    -- red and the stop sign shows. `T` on the board changes it for the session.
+    -- 0 means no limit.
+    standup_person_time = 120,
+    -- The column an issue view breaks its text at, close to what the browser
+    -- shows. Only the view is broken: the text sent to Jira keeps its lines.
+    wrap_width = 100,
     --- Fields never worth a line, by the name Jira shows. An instance carries
     --- more than a hundred custom fields and most belong to another team.
     --- Matching is on the whole name and ignores case.
@@ -64,7 +76,7 @@ M.options = {
             },
             --- The fields that come first, in this order. Every other field
             --- follows, required ones before optional ones.
-            order = { 'summary', 'customfield_11912', 'description', 'customfield_10006' },
+            order = { 'summary', 'customfield_11912', 'description', 'customfield_10006', 'timetracking' },
             --- Never a line on the form, by field id. These are on top of
             --- hidden_fields above, which works on the name instead.
             hidden = { 'attachment', 'customfield_13141' },
@@ -77,7 +89,7 @@ M.options = {
                 'customfield_10005',    -- Sprint
                 'assignee',
                 'customfield_10002',    -- Dev days
-                'timeoriginalestimate', -- no LIS screen carries it, so far
+                'timetracking',         -- Original and remaining estimate
             },
         },
     },

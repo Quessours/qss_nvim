@@ -46,6 +46,22 @@ end
 ---@field project string? the project, when the issue does not exist yet
 ---@field label string what a prompt calls it
 
+-- Jira takes both estimates through this field on every LIS issue, on create
+-- and on edit, but reports it in neither createmeta nor editmeta: no LIS screen
+-- carries it. Offered all the same, in the shape the metadata would give it.
+local TIME_TRACKING = { id = 'timetracking', name = 'Time tracking', type = 'timetracking', operations = {} }
+
+--- Add the time tracking to what the metadata reports, when it left it out.
+---@param fields qss.jira.EditField[]
+function M.add_time_tracking(fields)
+    for _, field in ipairs(fields) do
+        if field.id == TIME_TRACKING.id then
+            return
+        end
+    end
+    fields[#fields + 1] = vim.deepcopy(TIME_TRACKING)
+end
+
 --- The fields Jira will accept on this issue right now.
 ---@param key string
 ---@param callback fun(fields: qss.jira.EditField[])
@@ -70,6 +86,7 @@ function M.editable(key, callback)
                 operations = described.operations or {},
             }
         end
+        M.add_time_tracking(fields)
 
         table.sort(fields, function(left, right)
             return left.name < right.name
@@ -297,13 +314,15 @@ end
 ---@param key string
 ---@param sprint qss.jira.Sprint
 ---@param done fun()
-function M.write_sprint(key, sprint, done)
-    cli.write({ 'sprint', 'add', sprint.id, key }, '', done)
+---@param on_failure fun()? runs when the issue stayed out of the sprint
+function M.write_sprint(key, sprint, done, on_failure)
+    cli.write({ 'sprint', 'add', sprint.id, key }, '', done, on_failure)
 end
 
+--- Whether a field holds a whole Atlassian document rather than one line.
 ---@param field qss.jira.EditField
 ---@return boolean
-local function is_rich_text(field)
+function M.is_rich_text(field)
     if field.id == 'description' or field.id == 'environment' then
         return true
     end
@@ -360,7 +379,7 @@ end
 ---@param field qss.jira.EditField
 ---@return string? kind
 local function kind_of(field)
-    if is_rich_text(field) then
+    if M.is_rich_text(field) then
         return 'rich'
     end
     if field.custom == EPIC_LINK then

@@ -1,17 +1,3 @@
--- Colors the output of a running program by log level, in two layers.
---
--- Layer one is the program itself. `qWarning() << "x"` prints a bare "x", so
--- nothing in the stream says which level it came from, and no pattern on this
--- side can recover it. QT_MESSAGE_PATTERN fixes that at the source: Qt reads it
--- at startup and picks one branch per message. Programs built on env_logger,
--- tracing or a spdlog color sink already color themselves once they see a tty,
--- which the pty behind an overseer task gives them.
---
--- Layer two is the RULES table below, for output that names its level in plain
--- text ("[error]", "level=warn", "ERROR:"). Editor highlighting wins over
--- terminal colors (see :help terminal), so a line that arrives with escape
--- codes of its own still ends up the color the rule asks for.
-
 local M = {}
 
 -- 256-color codes rather than the 8-color names, because "orange" is not one of
@@ -32,13 +18,6 @@ local HL = {
     QssLogError = '#e64545',
 }
 
---- Level names appear in enough shapes that each pattern matches a delimiter
---- too: a bare "error" inside a path or a sentence is not a level, "[error]" is.
---- The uppercase patterns carry \C because uppercase is exactly what tells
---- `ERROR` in a log line apart from the word in a message body. Every pattern
---- states its case with \c or \C, since one of them anywhere applies to the
---- whole pattern, which is also why these stay separate instead of being joined
---- into one alternation.
 ---@type { hl: string, patterns: string[] }[]
 local RULES = {
     {
@@ -101,8 +80,6 @@ local function rules()
     return compiled
 end
 
---- First rule that matches wins, so RULES stays ordered by severity: a line
---- reading "WARN 0 errors" is a warning, not an error.
 ---@param line string
 ---@return string|nil highlight group
 local function level_of(line)
@@ -189,6 +166,27 @@ local function recolor(bufnr, first, last)
     end
 end
 
+--- A plain output buffer keeps each line whole, and only 'wrap' shows the end of
+--- a long one. The window the output shows in has whatever 'wrap' the window
+--- it was split from had.
+---@param bufnr integer
+local function wrap_in_windows(bufnr)
+    local function wrap(window)
+        vim.wo[window].wrap = true
+        vim.wo[window].linebreak = true
+    end
+    for _, window in ipairs(vim.fn.win_findbuf(bufnr)) do
+        wrap(window)
+    end
+    vim.api.nvim_create_autocmd('BufWinEnter', {
+        buffer = bufnr,
+        desc = 'Wrap the long lines of a task output',
+        callback = function()
+            wrap(vim.api.nvim_get_current_win())
+        end,
+    })
+end
+
 ---@type table<integer, true>
 local attached = {}
 
@@ -198,6 +196,9 @@ local function attach(bufnr)
         return
     end
     attached[bufnr] = true
+    if vim.bo[bufnr].buftype ~= 'terminal' then
+        wrap_in_windows(bufnr)
+    end
     recolor(bufnr, 0, vim.api.nvim_buf_line_count(bufnr))
     vim.api.nvim_buf_attach(bufnr, false, {
         on_lines = function(_, buf, _, first, _, new_last)
@@ -222,13 +223,15 @@ end
 function M.setup()
     -- Every child of this nvim inherits the variable, so a Qt program colors
     -- itself whether overseer, nvim-dap or a bare :terminal started it.
+    -- The level is also written as text, because a plain output buffer strips
+    -- the color codes, and the RULES above then match "[warning]".
     vim.env.QT_MESSAGE_PATTERN = table.concat({
         '%{if-debug}' .. ANSI.debug .. '%{endif}',
         '%{if-info}' .. ANSI.info .. '%{endif}',
         '%{if-warning}' .. ANSI.warning .. '%{endif}',
         '%{if-critical}' .. ANSI.critical .. '%{endif}',
         '%{if-fatal}' .. ANSI.fatal .. '%{endif}',
-        '%{if-category}%{category}: %{endif}%{message}' .. ANSI.reset,
+        '[%{type}] %{if-category}%{category}: %{endif}%{message}' .. ANSI.reset,
     })
 
     define_highlights()

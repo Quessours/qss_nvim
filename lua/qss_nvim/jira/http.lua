@@ -29,9 +29,13 @@ end
 ---@param args string[]
 ---@param credentials string a curl -K config
 ---@param callback fun(status: integer, body: string)
-local function request(args, credentials, callback, label)
+---@param label string?
+---@param on_failure fun()? called when no answer came back
+local function request(args, credentials, callback, label, on_failure)
+    on_failure = on_failure or function() end
     if vim.fn.executable('curl') ~= 1 then
-        return notify('curl is not on the PATH', vim.log.levels.ERROR)
+        notify('curl is not on the PATH', vim.log.levels.ERROR)
+        return on_failure()
     end
 
     local cmd = { 'curl', '--silent', '--show-error', '--config', '-', '--write-out', '\n%{http_code}' }
@@ -48,8 +52,9 @@ local function request(args, credentials, callback, label)
             progress.finish(token)
             if not status then
                 local reason = vim.trim(result.stderr or '')
-                return notify(('the request failed: %s'):format(reason ~= '' and reason or 'no answer'),
+                notify(('the request failed: %s'):format(reason ~= '' and reason or 'no answer'),
                     vim.log.levels.ERROR)
+                return on_failure()
             end
             callback(tonumber(status) or 0, body)
         end)
@@ -84,16 +89,20 @@ end
 ---@param path string for example /rest/api/3/myself
 ---@param body table? sent as JSON
 ---@param callback fun(decoded: table)
-local function jira_request(method, path, body, callback)
+---@param on_failure fun()? called when Jira was not reached or refused the call
+local function jira_request(method, path, body, callback, on_failure)
+    on_failure = on_failure or function() end
     local instance = require('qss_nvim.jira.config').instance()
     local api_token = env('JIRA_API_TOKEN')
 
     if not (instance and instance.server and instance.login) then
-        return notify('jira-cli is not configured. Run jira init.', vim.log.levels.ERROR)
+        notify('jira-cli is not configured. Run jira init.', vim.log.levels.ERROR)
+        return on_failure()
     end
     if not api_token then
-        return notify('JIRA_API_TOKEN is not exported. Neovim inherits it from the shell.',
+        notify('JIRA_API_TOKEN is not exported. Neovim inherits it from the shell.',
             vim.log.levels.ERROR)
+        return on_failure()
     end
 
     local credentials = ('user = "%s:%s"\n'):format(instance.login, api_token)
@@ -109,33 +118,37 @@ local function jira_request(method, path, body, callback)
 
     request(args, credentials, function(status, answer)
         local decoded = decode(status, answer, 'Jira')
-        if decoded then
-            callback(decoded)
+        if not decoded then
+            return on_failure()
         end
-    end, label)
+        callback(decoded)
+    end, label, on_failure)
 end
 
 --- Read from the Jira REST API.
 ---@param path string
 ---@param callback fun(decoded: table)
-function M.jira_rest(path, callback)
-    jira_request('GET', path, nil, callback)
+---@param on_failure fun()? called when Jira was not reached or refused the call
+function M.jira_rest(path, callback, on_failure)
+    jira_request('GET', path, nil, callback, on_failure)
 end
 
 --- Write to the Jira REST API.
 ---@param path string
 ---@param body table
 ---@param callback fun(decoded: table)
-function M.jira_post(path, body, callback)
-    jira_request('POST', path, body, callback)
+---@param on_failure fun()? called when Jira was not reached or refused the call
+function M.jira_post(path, body, callback, on_failure)
+    jira_request('POST', path, body, callback, on_failure)
 end
 
 --- Change fields of an existing issue.
 ---@param path string
 ---@param body table
 ---@param callback fun(decoded: table)
-function M.jira_put(path, body, callback)
-    jira_request('PUT', path, body, callback)
+---@param on_failure fun()? called when Jira was not reached or refused the call
+function M.jira_put(path, body, callback, on_failure)
+    jira_request('PUT', path, body, callback, on_failure)
 end
 
 --- Remove something from Jira.

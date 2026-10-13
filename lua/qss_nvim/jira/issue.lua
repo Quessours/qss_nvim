@@ -73,7 +73,72 @@ end
 ---@field add_link boolean? the Links heading
 ---@field add_comment boolean? the Comments heading
 
---- The lines of the buffer, and which field each editable one carries.
+--- One line broken at the last space before the wrap width, the way the browser
+--- breaks a paragraph. Every piece after the first opens on `hang`, so a broken
+--- line still reads as part of its quote, its list item or its field row.
+---@param line string
+---@param hang string
+---@return string[]
+local function break_line(line, hang)
+    local width = config.options.wrap_width
+    local pieces = {}
+    local rest = line
+    -- Never break inside the prefix itself, or the hang would loop forever.
+    local start = #hang + 1
+
+    while vim.api.nvim_strwidth(rest) > width do
+        local cut
+        local from = start
+        while true do
+            local space = rest:find(' ', from, true)
+            if not space then
+                break
+            end
+            if cut and vim.api.nvim_strwidth(rest:sub(1, space - 1)) > width then
+                break
+            end
+            cut = space
+            from = space + 1
+        end
+        if not cut then
+            break
+        end
+        pieces[#pieces + 1] = rest:sub(1, cut - 1)
+        rest = hang .. rest:sub(cut + 1)
+        start = #hang + 1
+    end
+
+    pieces[#pieces + 1] = rest
+    return pieces
+end
+
+--- Markdown lines broken to the wrap width. A code block is left as it is,
+--- because its line breaks are part of the code.
+---@param lines string[]
+---@return string[]
+local function wrap(lines)
+    local wrapped = {}
+    local in_code = false
+
+    for _, line in ipairs(lines) do
+        if line:match('^[>%s]*```') then
+            in_code = not in_code
+        end
+        if in_code then
+            wrapped[#wrapped + 1] = line
+        else
+            local lead = line:match('^[>%s]*')
+            local after = line:sub(#lead + 1)
+            local marker = after:match('^[%-%*]%s+%[[ xX]%]%s')
+                or after:match('^[%-%*]%s+')
+                or after:match('^%d+%.%s+')
+                or ''
+            vim.list_extend(wrapped, break_line(line, lead .. (' '):rep(#marker)))
+        end
+    end
+    return wrapped
+end
+
 --- The estimates, which Jira keeps as one field and reports in three places.
 ---@param values table
 ---@return string
@@ -94,20 +159,46 @@ end
 ---@param issue table
 ---@param editable qss.jira.EditField[]
 ---@param comments table[]
----@return string[] lines, table<integer, qss.jira.Line> owners
+---@return string[] lines, table<integer, qss.jira.Line> owners, integer[] labelled the lines a field label opens
 local function render(key, issue, editable, comments)
     local values = issue.fields or {}
     local lines = {}
     local owners = {}
+    local labelled = {}
 
     ---@param label string
     ---@param value string
     ---@param owner qss.jira.Line?
     local function row(label, value, owner)
-        lines[#lines + 1] = ('  %-' .. LABEL_WIDTH .. 's%s'):format(label:sub(1, LABEL_WIDTH - 1),
+        local line = ('  %-' .. LABEL_WIDTH .. 's%s'):format(label:sub(1, LABEL_WIDTH - 1),
             value ~= '' and value or '—')
-        if owner then
-            owners[#lines] = owner
+        labelled[#labelled + 1] = #lines + 1
+        for _, piece in ipairs(break_line(line, (' '):rep(2 + LABEL_WIDTH))) do
+            lines[#lines + 1] = piece
+            if owner then
+                owners[#lines] = owner
+            end
+        end
+    end
+
+    --- A field that holds a whole document, drawn under a heading of its own
+    --- rather than squeezed onto one row. Every line of it edits the field.
+    ---@param field qss.jira.EditField
+    ---@param document any
+    local function document_section(field, document)
+        lines[#lines + 1] = ''
+        lines[#lines + 1] = '## ' .. field.name
+        local heading = #lines
+        lines[#lines + 1] = ''
+
+        local body, kept = adf.to_markdown(document)
+        vim.list_extend(lines, wrap(body))
+        for line = heading, #lines do
+            owners[line] = { field = field, current = document }
+        end
+        if #kept > 0 then
+            lines[#lines + 1] = ''
+            lines[#lines + 1] = ('  %d block above is kept as it is; markdown can not write it.'):format(#kept)
         end
     end
 
@@ -161,12 +252,17 @@ local function render(key, issue, editable, comments)
 
     local filled = {}
     local empty = {}
+    -- A rich text field that holds something gets a section, like the
+    -- description. An empty one stays a row, where it can still be filled.
+    local documents = {}
     for _, field in ipairs(editable) do
         if not (drawn[field.id] or SKIPPED[field.id] or config.is_hidden(field.name)) then
             local held = fields_module.render(values[field.id])
             -- Jira reports an untouched object field as the literal "{}".
             local entry = { field = field, value = (held == '{}' or held == '[]') and '' or held }
-            local bucket = entry.value ~= '' and filled or empty
+            local bucket = entry.value == '' and empty
+                or edit.is_rich_text(field) and documents
+                or filled
             bucket[#bucket + 1] = entry
         end
     end
@@ -175,23 +271,11 @@ local function render(key, issue, editable, comments)
         row(entry.field.name, entry.value, { field = entry.field, current = values[entry.field.id] })
     end
 
-    lines[#lines + 1] = ''
-    lines[#lines + 1] = '## Description'
-    lines[#lines + 1] = ''
-
-    local description_heading = #lines - 1
-    local description_line = #lines + 1
-    local body, kept = adf.to_markdown(values.description)
-    vim.list_extend(lines, body)
-
-    local description_field = by_id.description
-        or { id = 'description', name = 'Description', type = 'string', operations = {} }
-    for line = description_heading, #lines do
-        owners[line] = { field = description_field, current = values.description }
-    end
-    if #kept > 0 then
-        lines[#lines + 1] = ''
-        lines[#lines + 1] = ('  %d block above is kept as it is; markdown can not write it.'):format(#kept)
+    document_section(by_id.description
+        or { id = 'description', name = 'Description', type = 'string', operations = {} },
+        values.description)
+    for _, entry in ipairs(documents) do
+        document_section(entry.field, values[entry.field.id])
     end
 
     local links = require('qss_nvim.jira.links').of(values)
@@ -225,7 +309,7 @@ local function render(key, issue, editable, comments)
         lines[#lines + 1] = ('### %s  ·  %s'):format(comment.author and comment.author.displayName or '?',
             (comment.created or ''):sub(1, 10))
         lines[#lines + 1] = ''
-        vim.list_extend(lines, (adf.to_markdown(comment.body)))
+        vim.list_extend(lines, wrap((adf.to_markdown(comment.body))))
         -- The whole block belongs to its comment, so the cursor does not have to
         -- find the header line to act on what it is reading.
         for line = opened, #lines do
@@ -233,27 +317,22 @@ local function render(key, issue, editable, comments)
         end
     end
 
-    return lines, owners
+    return lines, owners, labelled
 end
 
+--- Colour the label of every field row, and nothing else: an indented line of
+--- a description is text, however many spaces it opens on.
 ---@param buffer integer
 ---@param lines string[]
----@param owners table<integer, qss.jira.Line>
-local function paint(buffer, lines, owners)
+---@param labelled integer[]
+local function paint(buffer, lines, labelled)
     vim.api.nvim_buf_clear_namespace(buffer, namespace, 0, -1)
 
-    for line, owner in pairs(owners) do
-        local text = lines[line]
-        if not owner.field or owner.link or owner.comment then
-            goto continue
-        end
-        if text and text:sub(1, 2) == '  ' and owner.field.type ~= 'string' or text and text:sub(1, 2) == '  ' then
-            vim.api.nvim_buf_set_extmark(buffer, namespace, line - 1, 2, {
-                end_col = math.min(2 + LABEL_WIDTH, #text),
-                hl_group = 'SnacksPickerLabel',
-            })
-        end
-        ::continue::
+    for _, line in ipairs(labelled) do
+        vim.api.nvim_buf_set_extmark(buffer, namespace, line - 1, 2, {
+            end_col = math.min(2 + LABEL_WIDTH, #lines[line]),
+            hl_group = 'SnacksPickerLabel',
+        })
     end
 end
 
@@ -369,7 +448,7 @@ function M.load(buffer, key)
             return
         end
 
-        local lines, owners = render(key, issue, editable, comments)
+        local lines, owners, labelled = render(key, issue, editable, comments)
 
         -- A refresh redraws under the cursor, so the line being worked on stays
         -- the line under the cursor.
@@ -393,7 +472,7 @@ function M.load(buffer, key)
         vim.b[buffer].qss_jira_owners = keyed
         vim.b[buffer].qss_jira_key = key
 
-        paint(buffer, lines, owners)
+        paint(buffer, lines, labelled)
 
         for window, position in pairs(cursors) do
             if vim.api.nvim_win_is_valid(window) then

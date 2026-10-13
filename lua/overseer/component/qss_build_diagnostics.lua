@@ -1,6 +1,3 @@
--- Overseer loads components by name from every lua/overseer/component/ on the
--- runtimepath, this one included.
---
 -- It does what overseer's own on_result_diagnostics does, in one namespace
 -- shared by every build. Overseer names its namespace after the task, and the
 -- three ways a build starts here (:CMakeBuild, the "cmake build" template, the

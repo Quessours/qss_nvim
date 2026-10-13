@@ -2,6 +2,7 @@
 --
 local build = require('qss_nvim.cmake-tools.build')
 local state = require('qss_nvim.cmake-tools.state')
+local strategy = require('qss_nvim.overseer.strategy')
 local utils = require('qss_nvim.utils')
 
 local M = {}
@@ -58,6 +59,7 @@ local function start_ctest(names)
         name = label,
         cmd = { 'ctest' },
         args = args,
+        strategy = strategy.tests,
         components = M.components,
     })
     task:subscribe('on_start', function()

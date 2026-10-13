@@ -39,16 +39,43 @@ local function trim_trailing_blanks(lines)
     end
 end
 
+-- The order marks are written in, innermost first. Jira keeps them in any
+-- order, so a fixed one is what lets the reader take them apart again:
+-- `***x***` is always strong around em, and `~~**x**~~` strike around strong.
+local MARK_ORDER = { 'code', 'em', 'strong', 'strike' }
+
+-- The characters a backslash keeps literal, in the class a pattern takes.
+local ESCAPABLE = '[%*`~%[\\]'
+
+---@type fun(text: string): table[]
+local inline_nodes
+
+--- Whether plain text would read back as something else: a star taken for
+--- emphasis, a bracket for a link. Only then is it escaped, so a log line or a
+--- sum stays readable. A trailing backslash is escaped too, or the break after
+--- it would read as an escaped character.
+---@param text string
+---@return boolean
+local function needs_escape(text)
+    if text == '' then
+        return false
+    end
+    if text:match('\\$') then
+        return true
+    end
+    local parsed = inline_nodes(text)
+    return not (#parsed == 1 and parsed[1].text == text and parsed[1].marks == nil)
+end
+
 ---@param node table
 ---@return string?
 local function text_of(node)
-    local value = node.text or ''
+    local held = {}
     local link
 
     for _, mark in ipairs(node.marks or {}) do
-        local wrapper = MARKS[mark.type]
-        if wrapper then
-            value = wrapper .. value .. wrapper
+        if MARKS[mark.type] then
+            held[mark.type] = true
         elseif mark.type == 'link' then
             link = mark.attrs and mark.attrs.href
         else
@@ -56,10 +83,26 @@ local function text_of(node)
         end
     end
 
-    if link then
-        value = ('[%s](%s)'):format(value, link)
+    -- Jira shows a newline inside a text node as the line break it is, so each
+    -- line is marked on its own and the newline becomes a break.
+    local pieces = {}
+    for _, piece in ipairs(vim.split(node.text or '', '\n', { plain = true })) do
+        if not held.code and needs_escape(piece) then
+            piece = piece:gsub(ESCAPABLE, '\\%0')
+        end
+        if piece ~= '' then
+            for _, mark in ipairs(MARK_ORDER) do
+                if held[mark] then
+                    piece = MARKS[mark] .. piece .. MARKS[mark]
+                end
+            end
+            if link then
+                piece = ('[%s](%s)'):format(piece, link)
+            end
+        end
+        pieces[#pieces + 1] = piece
     end
-    return value
+    return table.concat(pieces, '\n')
 end
 
 ---@param nodes table[]
@@ -118,12 +161,21 @@ local function blocks(nodes, indent)
                 return nil
             end
             local level = node.attrs and node.attrs.level or 1
-            push(('%s %s'):format(('#'):rep(level), text))
+            push(('%s %s'):format(('#'):rep(level), (text:gsub('\n', '\\\n'))))
             lines[#lines + 1] = ''
         elseif node.type == 'codeBlock' then
-            local text = inline(node.content) or ''
+            -- Code is taken as it is: nothing in it is markup, so nothing is
+            -- escaped either.
+            local parts = {}
+            for _, child in ipairs(node.content or {}) do
+                parts[#parts + 1] = child.text or ''
+            end
+            local text = table.concat(parts)
             local language = node.attrs and node.attrs.language or ''
-            push(('```%s'):format(language))
+            -- Markdown has no word for a wrapped code block, so the fence
+            -- carries one after the language, where a renderer ignores it.
+            local wrapped = node.attrs and node.attrs.wrap and ' wrap' or ''
+            push(('```%s%s'):format(language, wrapped))
             push(text)
             push('```')
             lines[#lines + 1] = ''
@@ -159,20 +211,33 @@ local function blocks(nodes, indent)
                     return nil
                 end
                 local done = item.attrs and item.attrs.state == 'DONE'
-                push(('- [%s] %s'):format(done and 'x' or ' ', text))
+                -- A break inside an item is the same backslash as in a
+                -- paragraph, and the indent keeps the next line in the item.
+                push(('- [%s] %s'):format(done and 'x' or ' ', (text:gsub('\n', '\\\n  '))))
             end
             lines[#lines + 1] = ''
         elseif node.type == 'bulletList' or node.type == 'orderedList' then
             local ordered = node.type == 'orderedList'
+            local first = node.attrs and node.attrs.order or 1
             for index, item in ipairs(node.content or {}) do
                 local inner = blocks(item.content, indent .. '  ')
                 if not inner then
                     return nil
                 end
                 trim_trailing_blanks(inner)
-                local marker = ordered and ('%d. '):format(index) or '- '
-                local first = (inner[1] or ''):gsub('^%s+', '')
-                lines[#lines + 1] = indent .. marker .. first
+                -- A sub-list sits right under the text it belongs to, as it does
+                -- in Jira, rather than after the blank line a paragraph ends on.
+                for position = #inner - 1, 1, -1 do
+                    if inner[position] == '' then
+                        local next_line = inner[position + 1]:sub(#indent + 3)
+                        if next_line:match('^%s*[%-%*]%s') or next_line:match('^%s*%d+%.%s') then
+                            table.remove(inner, position)
+                        end
+                    end
+                end
+                local marker = ordered and ('%d. '):format(first + index - 1) or '- '
+                local opening = (inner[1] or ''):gsub('^%s+', '')
+                lines[#lines + 1] = indent .. marker .. opening
                 for position = 2, #inner do
                     lines[#lines + 1] = inner[position]
                 end
@@ -222,13 +287,17 @@ function M.to_markdown(document)
     return lines, kept
 end
 
---- A node as it reads, without the anchors the web editor hangs on it. localId
---- is an editor bookmark: Jira puts one on a block the first time it is touched
---- there, it is absent from blocks written through the API, and it says nothing
---- about what the block holds.
+--- A node as it reads, without what says nothing about its content.
+---
+--- localId is an editor bookmark: Jira puts one on a block the first time it is
+--- touched there, and it is absent from blocks written through the API. The
+--- marks on a piece of text are a set, which Jira stores in whatever order the
+--- editor applied them. A numbered list without `order` starts at 1, which the
+--- web editor writes out and the API leaves out. A newline inside a text node
+--- shows as the same line break as a hardBreak node, so it counts as one.
 ---@param node any
 ---@return any
-local function without_anchors(node)
+local function comparable(node)
     if type(node) ~= 'table' then
         return node
     end
@@ -244,8 +313,37 @@ local function without_anchors(node)
             end
             copy.attrs = next(attrs) and attrs or nil
         else
-            copy[field] = without_anchors(value)
+            copy[field] = comparable(value)
         end
+    end
+
+    if type(copy.content) == 'table' then
+        local split = {}
+        for _, child in ipairs(copy.content) do
+            if type(child) == 'table' and child.type == 'text' and child.text:find('\n', 1, true) then
+                for number, line in ipairs(vim.split(child.text, '\n', { plain = true })) do
+                    if number > 1 then
+                        split[#split + 1] = { type = 'hardBreak' }
+                    end
+                    if line ~= '' then
+                        split[#split + 1] = vim.tbl_extend('force', vim.deepcopy(child), { text = line })
+                    end
+                end
+            else
+                split[#split + 1] = child
+            end
+        end
+        copy.content = split
+    end
+
+    if copy.type == 'orderedList' then
+        copy.attrs = copy.attrs or {}
+        copy.attrs.order = copy.attrs.order or 1
+    end
+    if copy.type == 'text' and copy.marks then
+        table.sort(copy.marks, function(left, right)
+            return left.type < right.type
+        end)
     end
     return copy
 end
@@ -272,8 +370,8 @@ function M.round_trips(document)
 
     local lines, kept = M.to_markdown(document)
     local back = M.to_adf(lines, kept)
-    local original = M.without_blank_paragraphs(without_anchors(document.content or {}))
-    local rebuilt = M.without_blank_paragraphs(without_anchors(back.content or {}))
+    local original = M.without_blank_paragraphs(comparable(document.content or {}))
+    local rebuilt = M.without_blank_paragraphs(comparable(back.content or {}))
 
     if #original ~= #rebuilt then
         return false, original[math.min(#rebuilt + 1, #original)]
@@ -323,16 +421,34 @@ end
 ---@type fun(lines: string[], position: integer): table, integer
 local parse_list
 
+-- Strong around em comes first, because `***x***` would otherwise read as
+-- strong around `*x` and a stray star. `width` is the length of one delimiter.
 local INLINE_PATTERNS = {
-    { pattern = '^%*%*(.-)%*%*', mark = 'strong' },
-    { pattern = '^%*(.-)%*',     mark = 'em' },
-    { pattern = '^`(.-)`',       mark = 'code' },
-    { pattern = '^~~(.-)~~',     mark = 'strike' },
+    { pattern = '^%*%*%*(.-)%*%*%*', marks = { 'em', 'strong' }, width = 3 },
+    { pattern = '^%*%*(.-)%*%*',     marks = { 'strong' },       width = 2 },
+    { pattern = '^%*(.-)%*',         marks = { 'em' },           width = 1 },
+    { pattern = '^`(.-)`',           marks = { 'code' },         width = 1 },
+    { pattern = '^~~(.-)~~',         marks = { 'strike' },       width = 2 },
 }
 
 ---@param text string
 ---@return table[]
-local function inline_nodes(text)
+inline_nodes = function(text)
+    --- The text inside a delimiter, read again for the marks nested in it, with
+    --- the marks of the delimiter added to every piece.
+    ---@param inner string
+    ---@param marks table[]
+    ---@param nested boolean false for code, whose text is never markup
+    ---@return table[]
+    local function marked(inner, marks, nested)
+        local pieces = nested and inline_nodes(inner) or { { type = 'text', text = inner } }
+        for _, piece in ipairs(pieces) do
+            piece.marks = piece.marks or {}
+            vim.list_extend(piece.marks, vim.deepcopy(marks))
+        end
+        return pieces
+    end
+
     local nodes = {}
     local plain = {}
 
@@ -348,14 +464,22 @@ local function inline_nodes(text)
         local rest = text:sub(position)
         local matched = false
 
-        local label, href = rest:match('^%[(.-)%]%((.-)%)')
+        local escaped = rest:match('^\\(' .. ESCAPABLE .. ')')
+        if escaped then
+            plain[#plain + 1] = escaped
+            position = position + 2
+            matched = true
+        end
+
+        -- A label holds no bracket of its own, so a `[Warning]` earlier on the
+        -- line does not swallow everything up to the next real link.
+        local label, href
+        if not matched then
+            label, href = rest:match('^%[([^%[%]]-)%]%((.-)%)')
+        end
         if label then
             flush()
-            nodes[#nodes + 1] = {
-                type = 'text',
-                text = label,
-                marks = { { type = 'link', attrs = { href = href } } },
-            }
+            vim.list_extend(nodes, marked(label, { { type = 'link', attrs = { href = href } } }, true))
             position = position + #label + #href + 4
             matched = true
         end
@@ -365,16 +489,12 @@ local function inline_nodes(text)
                 local inner = rest:match(rule.pattern)
                 if inner and inner ~= '' then
                     flush()
-                    nodes[#nodes + 1] = {
-                        type = 'text',
-                        text = inner,
-                        marks = { { type = rule.mark } },
-                    }
-                    local wrapper = rule.mark == 'strong' and 4
-                        or rule.mark == 'strike' and 4
-                        or rule.mark == 'code' and 2
-                        or 2
-                    position = position + #inner + wrapper
+                    local marks = {}
+                    for _, mark in ipairs(rule.marks) do
+                        marks[#marks + 1] = { type = mark }
+                    end
+                    vim.list_extend(nodes, marked(inner, marks, rule.marks[1] ~= 'code'))
+                    position = position + #inner + 2 * rule.width
                     matched = true
                     break
                 end
@@ -397,7 +517,9 @@ end
 ---@param text string
 ---@return table
 local function paragraph(text)
-    if vim.trim(text) == '' then
+    -- Only nothing at all is an empty paragraph. A paragraph of line breaks
+    -- alone is still one, and it comes back as text of nothing but newlines.
+    if text == '' then
         return { type = 'paragraph' }
     end
 
@@ -411,6 +533,31 @@ local function paragraph(text)
     return { type = 'paragraph', content = content }
 end
 
+--- Whether a line goes on in the next one: it ends on a backslash that is not
+--- itself escaped, which takes an odd count of them.
+---@param line string
+---@return boolean
+local function breaks_line(line)
+    return #line:match('\\*$') % 2 == 1
+end
+
+--- The text that runs on from `first` through the lines after `position`, one
+--- line per break, with `indent` taken off each line it continues on.
+---@param first string
+---@param lines string[]
+---@param position integer the line after `first`
+---@param indent string? a pattern
+---@return string text, integer next_position
+local function run_on(first, lines, position, indent)
+    local gathered = { first }
+    while breaks_line(gathered[#gathered]) and position <= #lines do
+        gathered[#gathered] = gathered[#gathered]:sub(1, -2)
+        gathered[#gathered + 1] = indent and lines[position]:gsub('^' .. indent, '') or lines[position]
+        position = position + 1
+    end
+    return table.concat(gathered, '\n'), position
+end
+
 --- The indent, the kind and the text of a list line.
 ---@param line string?
 ---@return integer? indent, boolean? ordered, string? text
@@ -418,11 +565,13 @@ local function marker_of(line)
     if not line then
         return nil
     end
-    local bullet_indent, bullet_text = line:match('^(%s*)[%-%*]%s+(.*)$')
+    -- One space after the marker and no more: the rest is the text, which can
+    -- itself open on a space.
+    local bullet_indent, bullet_text = line:match('^(%s*)[%-%*]%s(.*)$')
     if bullet_indent then
         return #bullet_indent, false, bullet_text
     end
-    local number_indent, number_text = line:match('^(%s*)%d+%.%s+(.*)$')
+    local number_indent, number_text = line:match('^(%s*)%d+%.%s(.*)$')
     if number_indent then
         return #number_indent, true, number_text
     end
@@ -435,6 +584,7 @@ end
 ---@return table node, integer next_position
 parse_list = function(lines, position)
     local level, ordered = marker_of(lines[position])
+    local opening = lines[position]
     local items = {}
 
     while position <= #lines do
@@ -444,20 +594,46 @@ parse_list = function(lines, position)
         end
 
         position = position + 1
-        local item = { type = 'listItem', content = { paragraph(text or '') } }
+        local indent_of_item = ('%s'):rep(level + 2)
 
-        -- Anything indented deeper belongs to this item, not to the next one.
+        -- A line ending on a backslash goes on in the next one, inside the same
+        -- paragraph, the way it does outside a list.
+        local opening_text
+        opening_text, position = run_on(text or '', lines, position, indent_of_item)
+        local item = { type = 'listItem', content = { paragraph(opening_text) } }
+
+        --- Whether a line sits under this item rather than starting the next one:
+        --- a deeper marker, or text indented past the marker.
+        ---@param line string?
+        ---@return boolean
+        local function under_item(line)
+            if not line or vim.trim(line) == '' then
+                return false
+            end
+            local deeper = marker_of(line)
+            if deeper then
+                return deeper > level
+            end
+            return #line:match('^%s*') >= level + 2
+        end
+
+        -- Anything indented deeper belongs to this item, not to the next one. A
+        -- blank line does too when the item goes on below it: that is how two
+        -- paragraphs, or a paragraph and a list, sit in one item.
         local nested = {}
         while position <= #lines do
-            local deeper = marker_of(lines[position])
-            local continuation = lines[position]:match('^%s%s+%S')
-            if (deeper and deeper > level) or (not deeper and continuation) then
-                local without_indent = lines[position]:gsub('^' .. ('%s'):rep(level + 2), '')
-                nested[#nested + 1] = without_indent
-                position = position + 1
-            else
+            local filled = position
+            while filled <= #lines and vim.trim(lines[filled]) == '' do
+                filled = filled + 1
+            end
+            if not under_item(lines[filled]) then
                 break
             end
+            for _ = position, filled - 1 do
+                nested[#nested + 1] = ''
+            end
+            nested[#nested + 1] = lines[filled]:gsub('^' .. indent_of_item, '')
+            position = filled + 1
         end
 
         if #nested > 0 then
@@ -466,7 +642,12 @@ parse_list = function(lines, position)
         items[#items + 1] = item
     end
 
-    return { type = ordered and 'orderedList' or 'bulletList', content = items }, position
+    if not ordered then
+        return { type = 'bulletList', content = items }, position
+    end
+    -- The number the list opens on, the way the web editor writes it.
+    return { type = 'orderedList', attrs = { order = tonumber(opening:match('^%s*(%d+)')) }, content = items },
+        position
 end
 
 --- Markdown back into an Atlassian document, with the blocks set aside by
@@ -487,8 +668,10 @@ function M.to_adf(lines, kept)
     while position <= #lines do
         local line = lines[position]
         local index = line:match(PLACEHOLDER_PATTERN)
-        local heading_marks, heading_text = line:match('^(#+)%s+(.*)$')
-        local fence_language = line:match('^```(.*)$')
+        -- One space after the hashes and no more: the rest is the heading, which
+        -- can itself open on a space.
+        local heading_marks, heading_text = line:match('^(#+)%s(.*)$')
+        local fence_language, fence_flags = line:match('^```(%S*)(.*)$')
 
         if index then
             local node = kept[tonumber(index)]
@@ -502,12 +685,14 @@ function M.to_adf(lines, kept)
             content[#content + 1] = { type = 'rule' }
             position = position + 1
         elseif heading_marks then
+            local text
+            text, position = run_on(heading_text, lines, position + 1)
             content[#content + 1] = {
                 type = 'heading',
                 attrs = { level = math.min(#heading_marks, 6) },
-                content = inline_nodes(heading_text),
+                -- An empty heading carries no content at all, as Jira writes it.
+                content = paragraph(text).content,
             }
-            position = position + 1
         elseif fence_language then
             position = position + 1
             local body = {}
@@ -516,9 +701,13 @@ function M.to_adf(lines, kept)
                 position = position + 1
             end
             position = position + 1
+            local attrs = {
+                language = fence_language ~= '' and fence_language or nil,
+                wrap = fence_flags:match('%f[%w]wrap%f[%W]') and true or nil,
+            }
             content[#content + 1] = {
                 type = 'codeBlock',
-                attrs = fence_language ~= '' and { language = fence_language } or nil,
+                attrs = next(attrs) and attrs or nil,
                 content = { { type = 'text', text = table.concat(body, '\n') } },
             }
         elseif panel_of(line) then
@@ -548,16 +737,19 @@ function M.to_adf(lines, kept)
         elseif line:match('^%s*[%-%*]%s+%[[ xX]%]%s') then
             local items = {}
             while position <= #lines do
-                local mark, text = lines[position]:match('^%s*[%-%*]%s+%[([ xX])%]%s+(.*)$')
+                -- One space after the box and no more: the rest is the text,
+                -- which can itself open on a space.
+                local mark, text = lines[position]:match('^%s*[%-%*]%s+%[([ xX])%]%s(.*)$')
                 if not mark then
                     break
                 end
+                local item_text
+                item_text, position = run_on(text, lines, position + 1, '  ')
                 items[#items + 1] = {
                     type = 'taskItem',
                     attrs = { localId = local_id(), state = mark == ' ' and 'TODO' or 'DONE' },
-                    content = inline_nodes(text),
+                    content = paragraph(item_text).content or {},
                 }
-                position = position + 1
             end
             content[#content + 1] = {
                 type = 'taskList',
@@ -582,7 +774,7 @@ function M.to_adf(lines, kept)
                 local current = lines[position]
                 -- A blank line ends the paragraph, unless the line before it
                 -- marked a hard break, in which case the blank is part of it.
-                local continued = #body > 0 and body[#body]:match('\\$') ~= nil
+                local continued = #body > 0 and breaks_line(body[#body])
                 if vim.trim(current) == '' and not continued then
                     break
                 end
@@ -597,8 +789,10 @@ function M.to_adf(lines, kept)
                 body[#body + 1] = current
                 position = position + 1
             end
-            for index, line in ipairs(body) do
-                body[index] = line:gsub('\\$', '')
+            for number, body_line in ipairs(body) do
+                if breaks_line(body_line) then
+                    body[number] = body_line:sub(1, -2)
+                end
             end
             content[#content + 1] = paragraph(table.concat(body, '\n'))
         end

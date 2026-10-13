@@ -22,16 +22,19 @@ end
 ---@param callback fun(stdout: string?)
 ---@param finally fun()? runs whether it worked or not, so a caller showing
 ---                     progress can stop showing it on either path
-function M.run(args, callback, finally)
+---@param on_failure fun()? runs after the failure is reported
+function M.run(args, callback, finally, on_failure)
     local function done()
         if finally then
             finally()
         end
     end
+    on_failure = on_failure or function() end
 
     if vim.fn.executable('jira') ~= 1 then
         done()
-        return notify('jira-cli is not on the PATH', vim.log.levels.ERROR)
+        notify('jira-cli is not on the PATH', vim.log.levels.ERROR)
+        return on_failure()
     end
 
     local cmd = { 'jira' }
@@ -44,16 +47,18 @@ function M.run(args, callback, finally)
             done()
 
             if stdout:find(TOKEN_MISSING, 1, true) then
-                return notify('jira-cli has no API token. Export JIRA_API_TOKEN, then restart Neovim.',
+                notify('jira-cli has no API token. Export JIRA_API_TOKEN, then restart Neovim.',
                     vim.log.levels.ERROR)
+                return on_failure()
             end
             if result.code ~= 0 then
                 -- jira-cli prints its own errors on stdout, coloured, so the
                 -- stream to read is not the one an exit code usually points at.
                 local written = vim.trim(result.stderr or '') .. vim.trim(stdout)
                 local reason = written:gsub('\27%[[%d;]*m', '')
-                return notify(('jira %s failed: %s'):format(args[1] or '', reason ~= '' and reason or 'no output'),
+                notify(('jira %s failed: %s'):format(args[1] or '', reason ~= '' and reason or 'no output'),
                     vim.log.levels.ERROR)
+                return on_failure()
             end
             callback(stdout)
         end)
@@ -88,7 +93,8 @@ end
 ---@param args string[]
 ---@param message string what to report once it worked, empty when the caller reports
 ---@param callback fun()? runs after the change landed
-function M.write(args, message, callback)
+---@param on_failure fun()? runs when jira-cli failed
+function M.write(args, message, callback, on_failure)
     local progress = require('qss_nvim.jira.progress')
     local token = progress.start('saving to Jira')
 
@@ -101,7 +107,7 @@ function M.write(args, message, callback)
         end
     end, function()
         progress.finish(token)
-    end)
+    end, on_failure)
 end
 
 return M
