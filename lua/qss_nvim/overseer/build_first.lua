@@ -22,6 +22,7 @@ local COMPONENTS = {
 ---@field name string the task name
 ---@field cmd string[] the command line, program first
 ---@field cwd string?
+---@field env table<string, string>?
 ---@field components table[]? what parses the output, if anything does
 ---@field failure string what to say when the build fails
 ---@field title string the notification title
@@ -38,6 +39,7 @@ function M.run(opts, on_done)
         name = opts.name,
         cmd = opts.cmd,
         cwd = opts.cwd,
+        env = opts.env,
         components = components,
     })
 

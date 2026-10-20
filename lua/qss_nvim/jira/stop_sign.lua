@@ -1,4 +1,4 @@
--- The stop sign a standup shows when its countdown runs out.
+-- The stop sign a standup shows when the person speaking runs out of time.
 --
 -- A float that never takes the focus, so the board stays usable under it. It
 -- swaps colors, words and position on a timer until it is hushed. <Esc> hushes

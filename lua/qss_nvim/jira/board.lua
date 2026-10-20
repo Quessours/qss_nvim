@@ -21,7 +21,7 @@ local clock_namespace = vim.api.nvim_create_namespace('qss.jira.standup')
 
 local LIST_LEGEND = '  i or <CR> acts   e, v or gd open   t transition   o browser   y yank   r reload   q close'
 local BOARD_LEGEND = '  i or <CR> acts   e, v or gd open   t transition   o browser   y yank   s standup   r reload   q close'
-local READY_LEGEND = '  > start   c countdown   T time per person   x absent or back   S shuffle   s cancel   i or <CR> acts   e, v or gd open   t transition   r reload'
+local READY_LEGEND = '  > start   T time per person   x absent or back   S shuffle   s cancel   i or <CR> acts   e, v or gd open   t transition   r reload'
 local STANDUP_LEGEND ='  < > previous or next person   T time per person   x absent or back   S shuffle   s end the standup   i or <CR> acts   e, v or gd open   t transition   r reload'
 
 ---@class qss.jira.Person
@@ -34,10 +34,8 @@ local STANDUP_LEGEND ='  < > previous or next person   T time per person   x abs
 ---@field index integer the person speaking, 0 until the standup starts
 ---@field since integer? when the standup started, in seconds
 ---@field person_since integer? when the person speaking began, in seconds
----@field start_at integer? when the countdown before the start runs out, in seconds
----@field announced boolean? the end of the countdown was announced
 ---@field person_announced boolean? the person speaking was told they are out of time
----@field timer uv.uv_timer_t? the clock, running during the countdown and the standup
+---@field timer uv.uv_timer_t? the clock, running during the standup
 
 ---@type qss.jira.Standup?
 local standup
@@ -419,6 +417,15 @@ local function show(view)
         return
     end
 
+    -- The fetch is asynchronous, so the current window may no longer be the
+    -- one the view was opened in. A window that already shows it wins.
+    if vim.api.nvim_get_current_buf() == buffer then
+        return
+    end
+    if windows[1] then
+        return vim.api.nvim_set_current_win(windows[1])
+    end
+
     local window = utils.main_window()
     if window and vim.api.nvim_win_is_valid(window) then
         vim.api.nvim_set_current_win(window)
@@ -457,7 +464,6 @@ function M.adopt(buffer, which)
     vim.keymap.set('n', '<', function() M.step(-1) end, { buffer = buffer, desc = 'Previous person' })
     vim.keymap.set('n', 'S', M.shuffle, { buffer = buffer, desc = 'Shuffle the people left' })
     vim.keymap.set('n', 'x', M.toggle_absent, { buffer = buffer, desc = 'Mark absent or back' })
-    vim.keymap.set('n', 'c', M.countdown, { buffer = buffer, desc = 'Countdown before the start' })
     vim.keymap.set('n', 'T', M.person_time, { buffer = buffer, desc = 'Time per person' })
     vim.api.nvim_create_autocmd('BufWipeout', {
         buffer = buffer,
@@ -481,8 +487,8 @@ local function clock(seconds)
     return ('%02d:%02d'):format(math.floor(seconds / 60), seconds % 60)
 end
 
--- The time per person last asked for with `T`, kept for the next standups of
--- the session.
+-- The time per person last asked for, at the start of a standup or with `T`,
+-- offered again by the next prompt of the session.
 ---@type integer?
 local person_time
 
@@ -491,8 +497,8 @@ local function person_limit()
     return person_time or config.options.standup_person_time or 0
 end
 
---- The countdown before the start, then the time of the person speaking and of
---- the whole standup, at the end of the title line. Virtual text, so the clock
+--- The time per person before the start, then the time of the person speaking
+--- and of the whole standup, at the end of the title line. Virtual text, so the clock
 --- ticks without rewriting the buffer under the cursor every second.
 local function paint_clock()
     local buffer = existing_buffer(BOARD)
@@ -524,18 +530,10 @@ local function paint_clock()
                 require('qss_nvim.jira.stop_sign').show()
             end
         end
-    elseif standup.start_at and now < standup.start_at then
-        text, hl = ('   starts in %s'):format(clock(standup.start_at - now)), 'DiagnosticInfo'
-    elseif standup.start_at then
-        text, hl = ('   time to start, %s late'):format(clock(now - standup.start_at)), 'DiagnosticWarn'
-        if not standup.announced then
-            standup.announced = true
-            notify('time to start the standup. > gives the word to the first person, <Esc> hushes the sign.',
-                vim.log.levels.WARN)
-            require('qss_nvim.jira.stop_sign').show()
-        end
     else
-        return
+        local limit = person_limit()
+        text = limit == 0 and '   no time limit' or ('   %s per person'):format(clock(limit))
+        hl = 'DiagnosticInfo'
     end
 
     vim.api.nvim_buf_set_extmark(buffer, clock_namespace, 0, 0, {
@@ -685,10 +683,7 @@ local function people_of(issues)
     return people
 end
 
--- The countdown last asked for, offered again by the next prompt.
-local last_countdown
-
---- `90`, `90s`, `2m`, `1m30` or `1:30`. Empty means no countdown.
+--- `90`, `90s`, `2m`, `1m30` or `1:30`. Empty means none.
 ---@param text string
 ---@return integer? seconds
 local function parse_duration(text)
@@ -720,27 +715,6 @@ local function format_duration(seconds)
     return rest == 0 and ('%dm'):format(minutes) or ('%dm%02d'):format(minutes, rest)
 end
 
---- Run the countdown from now, or drop it with 0.
----@param current qss.jira.Standup
----@param seconds integer
-local function set_countdown(current, seconds)
-    last_countdown = seconds
-    current.announced = false
-    require('qss_nvim.jira.stop_sign').hide()
-
-    if seconds == 0 then
-        current.start_at = nil
-        if current.timer then
-            current.timer:close()
-            current.timer = nil
-        end
-    else
-        current.start_at = os.time() + seconds
-        current.timer = current.timer or start_clock()
-    end
-    paint_clock()
-end
-
 --- Ask for a duration, asking again until the answer reads as one.
 ---@param what string
 ---@param offered integer seconds
@@ -762,18 +736,6 @@ local function ask_duration(what, offered, on_seconds)
     end)
 end
 
----@param current qss.jira.Standup
-local function ask_countdown(current)
-    local offered = last_countdown or config.options.standup_countdown or 0
-    ask_duration('Countdown before the standup', offered, function(seconds)
-        -- The standup ended or started while the prompt was up.
-        if standup ~= current or current.since then
-            return
-        end
-        set_countdown(current, seconds)
-    end)
-end
-
 --- Change the time each person has. It applies to the person speaking too, so
 --- raising it past what they have used hushes the sign.
 function M.person_time()
@@ -791,7 +753,8 @@ function M.person_time()
 end
 
 --- Lay out the people without starting: nobody speaks and the clock stays at
---- rest until `>`, so the people who are not there can be marked first.
+--- rest until `>`, so the people who are not there can be marked first. The
+--- time per person of this meeting is asked meanwhile.
 local function prepare_standup()
     standup_pending = false
     if not latest then
@@ -805,18 +768,7 @@ local function prepare_standup()
 
     standup = { people = people, index = 0 }
     draw(true)
-    ask_countdown(standup)
-end
-
---- Ask the countdown again, before the standup starts.
-function M.countdown()
-    if not standup then
-        return notify('no standup is running. s starts one.', vim.log.levels.WARN)
-    end
-    if standup.since then
-        return notify('the standup already started', vim.log.levels.WARN)
-    end
-    ask_countdown(standup)
+    M.person_time()
 end
 
 local function end_standup()
@@ -974,21 +926,48 @@ function M.refresh()
     end
 end
 
+--- Put a view in a tab page of its own, so that it never takes the place of the
+--- buffer being edited. A window that already shows the view is reused.
+---@param name string
+---@return boolean opened the name was opened for the first time, and its BufReadCmd draws it
+local function to_own_tab(name)
+    local buffer = existing_buffer(name)
+    if not buffer then
+        vim.cmd.tabedit(vim.fn.fnameescape(name))
+        return true
+    end
+
+    if vim.api.nvim_get_current_buf() ~= buffer then
+        local window = vim.fn.win_findbuf(buffer)[1]
+        if window then
+            vim.api.nvim_set_current_win(window)
+        else
+            vim.cmd(('tab sbuffer %d'):format(buffer))
+        end
+    end
+    return false
+end
+
 --- Draw the running sprint, one section per board column.
 ---@param options { focus: boolean? }? focus defaults to true
 function M.open(options)
+    local focus = not (options and options.focus == false)
+
     -- The buffer is claimed before anything is fetched. Fetching first and
     -- opening the name afterwards means the protocol loads it a second time,
     -- and every request is made twice.
-    if not existing_buffer(BOARD) then
-        return vim.cmd.edit(vim.fn.fnameescape(BOARD))
+    if focus then
+        if to_own_tab(BOARD) then
+            return
+        end
+    elseif not existing_buffer(BOARD) then
+        return
     end
 
     with_board(function(board_id)
         columns_of(board_id, function(columns)
             active_sprint(board_id, function(sprint)
                 sprint_issues(board_id, sprint.id, function(issues)
-                    local focus = not (options and options.focus == false)
                     with_account(function(account_id)
                         latest = { columns = columns, issues = issues, account_id = account_id, sprint = sprint }
                         if standup_pending then

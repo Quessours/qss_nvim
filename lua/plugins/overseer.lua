@@ -5,6 +5,11 @@ return {
         -- Debug configurations build through qss_nvim.overseer.build_first,
         -- so nvim-dap needs no preLaunchTask support.
         dap = false,
+        task_list = {
+            render = function(task)
+                return require('qss_nvim.overseer.render').task(task)
+            end,
+        },
         component_aliases = {
             default = {
                 'on_exit_set_status',

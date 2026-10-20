@@ -1,77 +1,20 @@
-local options = {
-  filters = {
-    dotfiles = false,
-    exclude = { vim.fn.stdpath "config" .. "/lua/custom" },
-  },
-  disable_netrw = true,
-  hijack_netrw = true,
-  hijack_cursor = true,
-  hijack_unnamed_buffer_when_opening = false,
-  sync_root_with_cwd = true,
-  update_focused_file = {
-    enable = true,
-    update_root = false,
-  },
-  view = {
-    adaptive_size = false,
-    side = "left",
-    width = 30,
-    preserve_window_proportions = true,
-  },
-  git = {
-    enable = false,
-    ignore = true,
-  },
-  filesystem_watchers = {
-    enable = true,
-  },
-  actions = {
-    open_file = {
-      resize_window = true,
-    },
-  },
+local local_files = require("qss_nvim.config.local_files")
+
+return {
+  sort_by = "case_sensitive",
   renderer = {
-    root_folder_label = false,
-    highlight_git = false,
-    highlight_opened_files = "none",
-
-    indent_markers = {
-      enable = false,
-    },
-
-    icons = {
-      show = {
-        file = true,
-        folder = true,
-        folder_arrow = true,
-        git = false,
-      },
-
-      glyphs = {
-        default = "",
-        symlink = "",
-        folder = {
-          default = "",
-          empty = "",
-          empty_open = "",
-          open = "",
-          symlink = "",
-          symlink_open = "",
-          arrow_open = "",
-          arrow_closed = "",
-        },
-        git = {
-          unstaged = "✗",
-          staged = "✓",
-          unmerged = "",
-          renamed = "➜",
-          untracked = "★",
-          deleted = "",
-          ignored = "◌",
-        },
-      },
-    },
+    group_empty = true,
+  },
+  filters = {
+    dotfiles = true,
+    -- Lua patterns matched against the absolute path. An exclusion overrides
+    -- every filter, the gitignore one and the dotfile one included, so a
+    -- CMakeUserPresets.json or a bitbake local.conf stays visible.
+    -- `I` toggles the gitignore filter for everything else, `H` the dotfiles.
+    exclude = local_files.tree_patterns(),
+    -- vim regexes matched against the name. Forcing a build directory open
+    -- above brings its object files with it, because git reports the directory
+    -- as ignored and not its contents. This hides them again.
+    custom = local_files.tree_custom(),
   },
 }
-
-return options

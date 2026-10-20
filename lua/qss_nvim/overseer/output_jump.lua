@@ -35,7 +35,8 @@ local function parsed_filename(task, path, lnum)
     local items = task.result and task.result.diagnostics or {}
     local name = vim.fs.basename(path)
     for _, item in ipairs(items) do
-        if item.filename and item.lnum == lnum and vim.fs.basename(item.filename) == name then
+        if item.filename and item.lnum == lnum and vim.fs.basename(item.filename) == name
+            and vim.fn.filereadable(item.filename) == 1 then
             return item.filename
         end
     end

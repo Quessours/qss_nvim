@@ -6,6 +6,7 @@
 -- the launch went looking for a release one.
 
 local build_first = require('qss_nvim.overseer.build_first')
+local cargo_diagnostics = require('qss_nvim.cargo.diagnostics')
 local dap = require('dap')
 local metadata = require('qss_nvim.cargo.metadata')
 local state = require('qss_nvim.cargo.state')
@@ -116,6 +117,8 @@ local function launcher(ask)
             return {
                 name = 'cargo build (before debug)',
                 cmd = vim.list_extend({ 'cargo' }, state.build_args()),
+                env = cargo_diagnostics.ENV,
+                components = cargo_diagnostics.components(),
                 failure = 'the build failed, so nothing was launched',
                 title = TITLE,
             }

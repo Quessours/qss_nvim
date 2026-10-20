@@ -17,7 +17,7 @@ return {
         dashboard =
             require("qss_nvim.snacks.dashboard_config"),
 
-        explorer = { enabled = true },
+        explorer = { enabled = false },
         indent = { enabled = true },
         input = { enabled = true },
         picker = {

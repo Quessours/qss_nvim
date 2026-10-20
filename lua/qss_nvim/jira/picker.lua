@@ -484,6 +484,121 @@ function M.jql_history()
     })
 end
 
+--- Every issue a JQL query returns, read through the REST API page by page.
+--- jira-cli is not used here: it adds its own project scope and its own ORDER
+--- BY, and a saved filter carries both of its own.
+---@param query string
+---@param callback fun(issues: table[])
+local function search_rest(query, callback)
+    local limit = 500
+    local issues = {}
+
+    local function page(token)
+        local path = ('/rest/api/3/search/jql?jql=%s&maxResults=100&fields=summary,status,assignee,issuetype')
+            :format(vim.uri_encode(query))
+        if token then
+            path = ('%s&nextPageToken=%s'):format(path, vim.uri_encode(token))
+        end
+
+        http.jira_rest(path, function(decoded)
+            vim.list_extend(issues, decoded.issues or {})
+            local more = decoded.nextPageToken and not decoded.isLast
+            if more and #issues < limit then
+                return page(decoded.nextPageToken)
+            end
+            if more then
+                notify(('the filter returns more than %d issues; only the first %d are shown'):format(limit, #issues),
+                    vim.log.levels.WARN)
+            end
+            callback(issues)
+        end)
+    end
+
+    page(nil)
+end
+
+--- Run a saved Jira filter, with its own JQL and its own order.
+---@param filter { id: string, name: string, jql: string }
+---@param options { on_confirm: fun(key: string)? }?
+function M.filter(filter, options)
+    local cache_key = ('issues.filter.%s'):format(filter.id)
+
+    pick_issues({
+        title = ('Filter: %s'):format(filter.name),
+        cache_key = cache_key,
+        on_confirm = options and options.on_confirm,
+        fetch = function(callback)
+            local remembered = cache.get(cache_key)
+            if remembered then
+                return callback(remembered)
+            end
+            search_rest(filter.jql, function(issues)
+                cache.set(cache_key, issues, config.options.cache_ttl)
+                callback(issues)
+            end)
+        end,
+    })
+end
+
+--- Pick among the filters you own or starred in Jira, then run one.
+---@param options { on_confirm: fun(key: string)? }?
+function M.saved_filters(options)
+    local function show(filters)
+        if #filters == 0 then
+            return notify('you own or starred no Jira filter', vim.log.levels.INFO)
+        end
+
+        local items = {}
+        for index, filter in ipairs(filters) do
+            items[#items + 1] = {
+                text = ('%s %s'):format(filter.name, filter.jql or ''),
+                idx = index,
+                filter = { id = filter.id, name = filter.name, jql = filter.jql or '' },
+            }
+        end
+
+        Snacks.picker({
+            source = 'jira_filters',
+            items = items,
+            format = function(item)
+                return {
+                    { item.filter.name, 'SnacksPickerLabel' },
+                    { ' ' },
+                    { item.filter.jql, 'SnacksPickerComment' },
+                }
+            end,
+            title = 'Saved filters',
+            layout = { preset = 'select' },
+            actions = {
+                jira_refresh = function(picker)
+                    picker:close()
+                    cache.invalidate('filters.mine')
+                    M.saved_filters(options)
+                end,
+            },
+            win = {
+                input = { keys = { ['<c-r>'] = { 'jira_refresh', mode = { 'n', 'i' } } } },
+                list = { keys = { ['<c-r>'] = 'jira_refresh' } },
+            },
+            confirm = function(picker, item)
+                picker:close()
+                if item then
+                    M.filter(item.filter, options)
+                end
+            end,
+        })
+    end
+
+    local remembered = cache.get('filters.mine')
+    if remembered then
+        return show(remembered)
+    end
+    http.jira_rest('/rest/api/3/filter/my?includeFavourites=true&expand=jql', function(filters)
+        cache.set('filters.mine', filters, config.options.cache_ttl)
+        show(filters)
+    end)
+end
+
 --- A term, safe to put inside a quoted JQL string.
 ---@param term string
 ---@return string

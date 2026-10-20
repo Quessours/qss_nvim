@@ -23,14 +23,10 @@ M.options = {
     },
     -- Prefill an empty commit message with the issue key of the branch.
     commit_prefix = true,
-    -- The countdown, in seconds, that a standup offers before it starts, while
-    -- the people who are not there get marked. The prompt at the start of each
-    -- standup can change it. At zero it only says so: the standup starts on
-    -- `>`, never by itself. 0 offers no countdown.
-    standup_countdown = 120,
     -- The time each person has to speak, in seconds. Past it, the clock turns
-    -- red and the stop sign shows. `T` on the board changes it for the session.
-    -- 0 means no limit.
+    -- red and the stop sign shows. The prompt at the start of each standup
+    -- offers it first, then the last answer of the session. `T` on the board
+    -- changes it during the standup. 0 means no limit.
     standup_person_time = 120,
     -- The column an issue view breaks its text at, close to what the browser
     -- shows. Only the view is broken: the text sent to Jira keeps its lines.

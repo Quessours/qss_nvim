@@ -35,6 +35,7 @@ local M = {
         ["<leader>jf"] = { function() issue().find(issue().open) end, "Find an issue by key or words" },
         ["<leader>jq"] = { function() picker().ask_jql() end, "Run a JQL query" },
         ["<leader>jQ"] = { function() picker().jql_history() end, "Re-run a JQL query" },
+        ["<leader>jl"] = { function() picker().saved_filters() end, "Saved filters" },
         ["<leader>jv"] = { function() issue().with_key(issue().open) end, "View the issue" },
         ["<leader>jW"] = { function() issue().with_key(actions().open_in_browser) end, "Web: open in the browser" },
 

@@ -134,6 +134,12 @@ end, {
     desc = 'Fuzzy find in the backlog of the board',
 })
 
+vim.api.nvim_create_user_command('JiraFilters', function()
+    picker.saved_filters()
+end, {
+    desc = 'Pick among your saved Jira filters, then run one',
+})
+
 vim.api.nvim_create_user_command('JiraQuickfix', function(opts)
     local query = vim.trim(opts.args)
     if query == '' then
