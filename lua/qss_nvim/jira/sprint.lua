@@ -30,7 +30,7 @@ local config = require('qss_nvim.jira.config')
 local http = require('qss_nvim.jira.http')
 local utils = require('qss_nvim.utils')
 
-local DAY = 86400000
+local MS_IN_A_DAY = 86400000
 
 -- Two spaces of indent, an eight-wide value label and the axis line: the bars
 -- begin one column after this, and the dates line up under that same column.
@@ -167,13 +167,13 @@ end
 ---@return string
 local function axis_dates(start_at, end_at, columns)
     local span = end_at - start_at
-    local days = math.max(1, math.ceil(span / DAY))
+    local days = math.max(1, math.ceil(span / MS_IN_A_DAY))
     -- A label is six characters wide, so leave at least eight between them.
     local every = math.max(1, math.ceil(days / math.max(1, math.floor(columns / 8))))
 
     local marks = {}
     for day = 0, days, every do
-        local at = start_at + day * DAY
+        local at = start_at + day * MS_IN_A_DAY
         local column = math.floor((at - start_at) / span * (columns - 1)) + 1
         marks[#marks + 1] = { column = column, text = os.date('%d %b', math.floor(at / 1000)) }
     end

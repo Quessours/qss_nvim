@@ -13,7 +13,7 @@ local M = {}
 --- Register templates that are offered only where `applies` accepts the
 --- directory the task picker was opened in.
 ---@param name string the provider name, which overseer reports its errors under
----@param applies boolean|fun(dir: string): boolean
+---@param applies boolean|fun(dir: string): condition/flag telling if the templates must be applied or not
 ---@param modules string[] the modules holding the templates
 function M.register(name, applies, modules)
     local templates = vim.tbl_map(require, modules)
@@ -21,7 +21,13 @@ function M.register(name, applies, modules)
     overseer.register_template({
         name = name,
         generator = function(search)
-            if (type(applies) == "boolean" and not applies) or not applies(search.dir) then
+            local applied
+            if type(applies) == "boolean" then
+                applied = applies
+            else
+                applied = applies(search.dir)
+            end
+            if not applied then
                 return {}
             end
             return templates
