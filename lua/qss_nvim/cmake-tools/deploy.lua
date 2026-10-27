@@ -7,8 +7,12 @@
 -- mirror the device: the binary is configured with the prefix it will run
 -- under, and DESTDIR only decides where that layout is assembled on this
 -- machine.
+--
+-- Every entry point goes through act(): it checks the device once, and then
+-- hands that device down the chain as an argument.
 
 local build = require('qss_nvim.cmake-tools.build')
+local build_first = require('qss_nvim.overseer.build_first')
 local devices = require('qss_nvim.remote.device')
 local findings = require('qss_nvim.findings')
 local remote_doctor = require('qss_nvim.remote.doctor')
@@ -18,14 +22,6 @@ local strategy = require('qss_nvim.overseer.strategy')
 local M = {}
 
 local TITLE = 'Deploy'
-
---- A step the user watches the next step of. It reports only when it fails,
---- because the output worth reading is the one at the end of the chain.
-local STEP_COMPONENTS = {
-    'on_exit_set_status',
-    { 'on_complete_notify',  statuses = { 'FAILURE' } },
-    { 'on_complete_dispose', require_view = { 'FAILURE' } },
-}
 
 --- The last step, whose output is the answer.
 local FINAL_COMPONENTS = {
@@ -96,25 +92,32 @@ function M.remote_binary(device)
     return device.prefix .. staged:sub(#root + 1)
 end
 
----@param definition table an overseer task definition
----@param failure string what to say when this step fails
+--- One task of the chain. It stays quiet when it works, and opens its log and
+--- stops the chain when it fails, the same way the build before it does.
+---@param opts qss.overseer.BuildFirst
 ---@param on_success fun()
----@return table task
-local function step(definition, failure, on_success)
-    local overseer = require('overseer')
-    local task = overseer.new_task(definition)
-
-    task:subscribe('on_complete', function(_, status)
-        if status == 'SUCCESS' then
+local function step(opts, on_success)
+    build_first.run(opts, function(ok)
+        if ok then
             on_success()
-        else
-            vim.notify(failure, vim.log.levels.ERROR, { title = TITLE })
         end
-        -- A truthy return unsubscribes, which one step is done with either way.
-        return true
     end)
-    task:start()
-    return task
+end
+
+--- Run the steps one after the other. Each step calls its argument to start the
+--- next one, and does not call it to stop the chain.
+---@param steps fun(done: fun())[]
+---@param on_success fun()
+local function in_order(steps, on_success)
+    local function from(index)
+        if index > #steps then
+            return on_success()
+        end
+        steps[index](function()
+            from(index + 1)
+        end)
+    end
+    from(1)
 end
 
 --- Whether the staged tree holds anything at all. A project without install()
@@ -143,11 +146,22 @@ local function install(device, on_success)
 
     step({
         name = ('cmake install (staging for %s)'):format(device.name),
-        cmd = { 'cmake' },
-        args = { '--install', build_dir(), '--config', state.build_type() },
+        cmd = { 'cmake', '--install', build_dir(), '--config', state.build_type() },
         env = { DESTDIR = staging },
-        components = vim.deepcopy(STEP_COMPONENTS),
-    }, 'the install step failed; nothing was copied', on_success)
+        failure = 'the install step failed; nothing was copied',
+        title = TITLE,
+    }, function()
+        if staged_tree_is_empty(device) then
+            return findings.notify({
+                {
+                    level = 'error',
+                    text = 'the project installs no files',
+                    fix = 'install(TARGETS <target> RUNTIME DESTINATION bin) in CMakeLists.txt',
+                },
+            }, 'Nothing to deploy', TITLE)
+        end
+        on_success()
+    end)
 end
 
 --- What the device has to do before the copy: stop the service, kill the old
@@ -164,94 +178,57 @@ local function prepare(device, on_success)
         return on_success()
     end
 
-    local argv = devices.ssh_argv(device, command)
     step({
         name = ('prepare %s'):format(device.name),
-        cmd = { argv[1] },
-        args = vim.list_slice(argv, 2),
-        components = vim.deepcopy(STEP_COMPONENTS),
-    }, ('the before_deploy commands could not run on %s'):format(device.target), on_success)
+        cmd = devices.ssh_argv(device, command),
+        failure = ('the before_deploy commands could not run on %s'):format(device.target),
+        title = TITLE,
+    }, on_success)
 end
 
 ---@param device qss.remote.Device
 ---@param on_success fun()
 local function copy(device, on_success)
-    local argv = devices.rsync_argv(device, M.staged_root(device))
     step({
         name = ('rsync to %s'):format(device.name),
-        cmd = { argv[1] },
-        args = vim.list_slice(argv, 2),
-        components = vim.deepcopy(STEP_COMPONENTS),
-    }, 'the copy to the device failed', on_success)
+        cmd = devices.rsync_argv(device, M.staged_root(device)),
+        failure = 'the copy to the device failed',
+        title = TITLE,
+    }, on_success)
 end
-
----@param list qss.Finding[]
----@param header string
----@return boolean
-local function blocked(list, header)
-    local blocking = findings.blocking(list)
-    if #blocking == 0 then
-        return false
-    end
-    findings.notify(blocking, header, TITLE)
-    return true
-end
-
----@class qss.cmake.DeployOpts
----@field force boolean? skip the checks
 
 --- Build, install into the staging tree, copy it to the device.
----@param opts qss.cmake.DeployOpts?
----@param on_success fun(device: qss.remote.Device)?
-function M.deploy(opts, on_success)
-    opts = opts or {}
-    local device = devices.selected()
-
-    if not opts.force and blocked(remote_doctor.run(device), 'Deploy blocked') then
-        return
-    end
-    if not device or not device.prefix then
-        return vim.notify('no usable device is selected', vim.log.levels.ERROR,
-            { title = TITLE })
-    end
-
+---@param device qss.remote.Device
+---@param on_success fun()?
+local function deploy_to(device, on_success)
     require('overseer').open({ enter = false, direction = 'bottom' })
     vim.notify(('building for %s...'):format(device.name), vim.log.levels.INFO,
         { title = TITLE })
 
-    build.first({
-        name = 'cmake build (before deploy)',
-        failure = 'build failed; nothing was deployed',
-        title = TITLE,
+    in_order({
+        function(done)
+            build.first({
+                name = 'cmake build (before deploy)',
+                failure = 'build failed; nothing was deployed',
+                title = TITLE,
+            }, done)
+        end,
+        function(done) install(device, done) end,
+        function(done) prepare(device, done) end,
+        function(done) copy(device, done) end,
     }, function()
-        install(device, function()
-            if staged_tree_is_empty(device) then
-                return findings.notify({
-                    {
-                        level = 'error',
-                        text = 'the project installs no files',
-                        fix = 'install(TARGETS <target> RUNTIME DESTINATION bin) in CMakeLists.txt',
-                    },
-                }, 'Nothing to deploy', TITLE)
-            end
-
-            prepare(device, function()
-                copy(device, function()
-                    vim.notify(('deployed to %s:%s'):format(device.target, device.prefix),
-                        vim.log.levels.INFO, { title = TITLE })
-                    if on_success then
-                        on_success(device)
-                    end
-                end)
-            end)
-        end)
+        vim.notify(('deployed to %s:%s'):format(device.target, device.prefix),
+            vim.log.levels.INFO, { title = TITLE })
+        if on_success then
+            on_success()
+        end
     end)
 end
 
 --- Deploy, then run the launch target on the device.
----@param opts qss.cmake.DeployOpts?
-function M.run(opts)
-    M.deploy(opts, function(device)
+---@param device qss.remote.Device
+local function run_on(device)
+    deploy_to(device, function()
         -- A device that names a run_command is started through it, and not
         -- through the launch target. A launcher reads the board settings and
         -- exports the environment that the bare binary would otherwise need
@@ -362,15 +339,9 @@ local function attach(device, server)
 end
 
 --- Deploy, start gdbserver on the device, attach the cross gdb to it.
----@param opts qss.cmake.DeployOpts?
-function M.debug(opts)
-    opts = opts or {}
-    local selected = devices.selected()
-    if not opts.force and blocked(remote_doctor.debug(selected), 'Debug blocked') then
-        return
-    end
-
-    M.deploy({ force = true }, function(device)
+---@param device qss.remote.Device
+local function debug_on(device)
+    deploy_to(device, function()
         local remote, message = M.remote_binary(device)
         if not remote then
             return vim.notify(message, vim.log.levels.ERROR, { title = TITLE })
@@ -419,33 +390,71 @@ function M.debug(opts)
     end)
 end
 
---- Where this build runs: here, or on the device it was configured for.
----
---- The prefix is what the RPATH and the QML import paths
+---@class qss.cmake.DeployOpts
+---@field force boolean? skip the checks
+
+---@class qss.cmake.RemoteAction
+---@field doctor fun(device: qss.remote.Device?): qss.Finding[] what must pass first
+---@field header string what the report says when the checks block it
+---@field start fun(device: qss.remote.Device)
+
+---@type qss.cmake.RemoteAction
+local DEPLOY = { doctor = remote_doctor.run, header = 'Deploy blocked', start = deploy_to }
+
+---@type qss.cmake.RemoteAction
+local RUN = { doctor = remote_doctor.run, header = 'Run blocked', start = run_on }
+
+--- The debug checks add the cross toolchain to the deploy ones.
+---@type qss.cmake.RemoteAction
+local DEBUG = { doctor = remote_doctor.debug, header = 'Debug blocked', start = debug_on }
+
+--- Check the device, then start the action on it. This is the only place that
+--- checks anything before a deploy. The doctor also covers a build configured
+--- for another CMAKE_INSTALL_PREFIX than the device holds, because it reports
+--- that as a warning and a warning blocks.
+---@param action qss.cmake.RemoteAction
+---@param device qss.remote.Device?
 ---@param opts qss.cmake.DeployOpts?
----@param there fun(opts: qss.cmake.DeployOpts?) what runs it on the device
----@param here string the :CMake command that runs it on this machine
-local function wherever_it_runs(opts, there, here)
-    if not state.cross_compiling() then
-        return vim.cmd(here)
-    end
-
-    ---@param device qss.remote.Device
-    local function once_chosen(device)
-        local values = state.cache_values() or {}
-        if device.prefix and values.CMAKE_INSTALL_PREFIX == device.prefix then
-            return there(opts)
+local function act(action, device, opts)
+    opts = opts or {}
+    if not opts.force then
+        local blocking = findings.blocking(action.doctor(device))
+        if #blocking > 0 then
+            return findings.notify(blocking, action.header, TITLE)
         end
+    end
+    if not device or not device.prefix then
+        return vim.notify('no usable device is selected', vim.log.levels.ERROR,
+            { title = TITLE })
+    end
+    action.start(device)
+end
 
-        findings.notify({
-            {
-                level = 'error',
-                text = ('this build installs to %s, and %s holds %s')
-                    :format(values.CMAKE_INSTALL_PREFIX or '(unset)', device.name,
-                        device.prefix or '(no prefix)'),
-                fix = ':CMakeOptions  (<leader>mv), then configure',
-            },
-        }, 'A cross build with nowhere to run', TITLE)
+--- :CMakeDeploy
+---@param opts qss.cmake.DeployOpts?
+function M.deploy(opts)
+    act(DEPLOY, devices.selected(), opts)
+end
+
+--- :CMakeRunRemote
+---@param opts qss.cmake.DeployOpts?
+function M.run(opts)
+    act(RUN, devices.selected(), opts)
+end
+
+--- :CMakeDebugRemote
+---@param opts qss.cmake.DeployOpts?
+function M.debug(opts)
+    act(DEBUG, devices.selected(), opts)
+end
+
+--- Where this build runs: here, or on the device it was configured for. A
+--- cross build cannot start on this machine.
+---@param action qss.cmake.RemoteAction what runs it on the device
+---@param here fun() what runs it on this machine
+local function wherever_it_runs(action, here)
+    if not state.cross_compiling() then
+        return here()
     end
 
     -- pick() is only reached with several devices declared: selected() answers
@@ -453,21 +462,25 @@ local function wherever_it_runs(opts, there, here)
     -- the project declares none.
     local device = devices.selected()
     if device then
-        return once_chosen(device)
+        return act(action, device)
     end
-    devices.pick(once_chosen)
+    devices.pick(function(chosen)
+        act(action, chosen)
+    end)
 end
 
 --- <leader>mr: run it where it runs.
----@param opts qss.cmake.DeployOpts?
-function M.run_wherever(opts)
-    wherever_it_runs(opts, M.run, 'CMakeRun')
+function M.run_wherever()
+    wherever_it_runs(RUN, function()
+        vim.cmd('CMakeRun')
+    end)
 end
 
 --- <leader>md: debug it where it runs.
----@param opts qss.cmake.DeployOpts?
-function M.debug_wherever(opts)
-    wherever_it_runs(opts, M.debug, 'CMakeDebug')
+function M.debug_wherever()
+    wherever_it_runs(DEBUG, function()
+        vim.cmd('CMakeDebug')
+    end)
 end
 
 return M

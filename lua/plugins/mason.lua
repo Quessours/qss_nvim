@@ -27,7 +27,13 @@ end
 return {
     "mason-org/mason.nvim",
     init = function()
+        -- setup() stays at startup: it puts the mason bin directory on PATH,
+        -- and the servers in lsp.lsp_init need it before the first buffer opens.
         require("mason").setup()
-        install_missing()
+        vim.api.nvim_create_autocmd("User", {
+            pattern = "VeryLazy",
+            once = true,
+            callback = install_missing,
+        })
     end
 }
