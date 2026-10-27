@@ -26,14 +26,19 @@ end
 
 return {
     "mason-org/mason.nvim",
+    event = "VeryLazy",
+    build = function()
+        pcall(vim.cmd.MasonUpdate)
+    end,
+    -- A file opened from the command line starts its server before VeryLazy,
+    -- so the mason bin directory goes on PATH here, without loading mason.
+    -- setup() is then told to leave PATH alone.
     init = function()
-        -- setup() stays at startup: it puts the mason bin directory on PATH,
-        -- and the servers in lsp.lsp_init need it before the first buffer opens.
-        require("mason").setup()
-        vim.api.nvim_create_autocmd("User", {
-            pattern = "VeryLazy",
-            once = true,
-            callback = install_missing,
-        })
-    end
+        local bin = vim.fn.stdpath("data") .. "/mason/bin"
+        vim.env.PATH = bin .. ":" .. vim.env.PATH
+    end,
+    config = function()
+        require("mason").setup({ PATH = "skip" })
+        install_missing()
+    end,
 }
