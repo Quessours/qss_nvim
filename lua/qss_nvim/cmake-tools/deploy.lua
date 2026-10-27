@@ -421,13 +421,7 @@ end
 
 --- Where this build runs: here, or on the device it was configured for.
 ---
---- A cross build cannot start on this machine at all, so the run keys send it
---- to the device instead of handing the host a binary it refuses. Configured
---- for the device means two things: cmake cross compiles, and
---- CMAKE_INSTALL_PREFIX is the directory that device holds. The second one is
---- not bookkeeping. The prefix is what the RPATH and the QML import paths
---- inside the binary were built from, so a build carrying another prefix is a
---- build for another machine.
+--- The prefix is what the RPATH and the QML import paths
 ---@param opts qss.cmake.DeployOpts?
 ---@param there fun(opts: qss.cmake.DeployOpts?) what runs it on the device
 ---@param here string the :CMake command that runs it on this machine

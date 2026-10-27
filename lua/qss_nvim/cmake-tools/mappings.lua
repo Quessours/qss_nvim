@@ -1,6 +1,9 @@
 local M = {
     n = {
-        ["<leader>mg"] = { "<cmd> CMakeGenerate <CR>", "CMake configure" },
+        -- Also applies the edits still waiting in the CMakeOptions picker.
+        ["<leader>mg"] = { function()
+            require("qss_nvim.cmake-tools.options").generate()
+        end, "CMake configure" },
         ["<leader>mb"] = { "<cmd> CMakeBuildChecked <CR>", "CMake build (checked)" },
         ["<leader>mB"] = { "<cmd> CMakeBuildChecked clean <CR>", "CMake clean build (keeps cache)" },
         ["<leader>mR"] = { "<cmd> CMakeRebuild <CR>", "CMake clean rebuild (wipes build dir)" },

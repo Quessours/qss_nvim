@@ -190,7 +190,7 @@ local function submit(drawn, buffer, project, type_id, type_name, template)
             open_issue()
         end
 
-        if kept_description then
+        if template and kept_description then
             return template_module.restore(key, template, kept_description, finish)
         end
         finish()

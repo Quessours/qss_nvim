@@ -274,7 +274,8 @@ local function write_presets()
     return true
 end
 
-local function apply()
+---@param on_success fun()? run once the configure run succeeds
+local function apply(on_success)
     local count = vim.tbl_count(pending)
     if count == 0 then
         return vim.notify('no option was changed', vim.log.levels.WARN, { title = 'CMake' })
@@ -299,6 +300,15 @@ local function apply()
         args = args,
         components = { 'default' },
     })
+    if on_success then
+        task:subscribe('on_complete', function(_, status)
+            if status == 'SUCCESS' then
+                on_success()
+            end
+            -- A truthy return unsubscribes.
+            return true
+        end)
+    end
     overseer.open({ enter = false, direction = 'bottom' })
     task:start()
 end
@@ -488,6 +498,35 @@ function M.pick()
             end
         end,
     })
+end
+
+--- Edits made for another build directory are dropped: their -D would land in
+--- the wrong cache.
+---@return boolean
+local function has_pending()
+    if pending_dir ~= state.build_dir() then
+        pending, pending_dir = {}, nil
+    end
+    return not vim.tbl_isempty(pending)
+end
+
+--- Configure with the edits the picker still holds, the way <c-g> does, or with
+--- :CMakeGenerate when there are none.
+function M.generate()
+    if not has_pending() then
+        return vim.cmd('CMakeGenerate')
+    end
+    apply()
+end
+
+--- Run `continue` at once, or after a configure run that applies the edits the
+--- picker still holds. A failed configure run skips `continue`.
+---@param continue fun()
+function M.configured_then(continue)
+    if not has_pending() then
+        return continue()
+    end
+    apply(continue)
 end
 
 return M

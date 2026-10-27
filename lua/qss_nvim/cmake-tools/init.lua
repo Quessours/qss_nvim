@@ -27,7 +27,9 @@ local function build(clean)
             { title = 'CMake' })
     end
     show_tasks()
-    cmake_tools.build({ bang = clean, fargs = {} })
+    require('qss_nvim.cmake-tools.options').configured_then(function()
+        cmake_tools.build({ bang = clean, fargs = {} })
+    end)
 end
 
 --- Throw the build directory away and configure and build from scratch.
