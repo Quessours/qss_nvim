@@ -17,6 +17,10 @@ return {
         return false
     end,
     event = "VeryLazy",
+    config = function(_, opts)
+        require("cmake-tools").setup(opts)
+        require("qss_nvim.cmake-tools.session").track()
+    end,
     opts = {
         cmake_generate_options = {
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",

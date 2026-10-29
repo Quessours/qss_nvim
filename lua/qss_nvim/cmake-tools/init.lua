@@ -2,6 +2,7 @@
 
 local doctor = require('qss_nvim.cmake-tools.doctor')
 local findings = require('qss_nvim.findings')
+local persist = require('qss_nvim.persist')
 local state = require('qss_nvim.cmake-tools.state')
 
 -- :CMakeRunTest builds its own ctest command and accepts no extra arguments, so
@@ -28,6 +29,7 @@ local function build(clean)
     end
     show_tasks()
     require('qss_nvim.cmake-tools.options').configured_then(function()
+        persist.flush()
         cmake_tools.build({ bang = clean, fargs = {} })
     end)
 end
@@ -83,6 +85,7 @@ local function rebuild(force)
 
     show_tasks()
     cmake_tools.generate({ bang = false, fargs = {} }, function(result)
+        persist.flush()
         if result:is_ok() then
             cmake_tools.build({ bang = false, fargs = {} })
         end
