@@ -29,6 +29,9 @@ return {
         cmake_executor = {
             name = "overseer",
             opts = {
+                new_task_opts = {
+                    strategy = require("qss_nvim.overseer.strategy").build,
+                },
                 -- Here to ensure that compile output goes into diagnostics,
                 -- and that the end of each task is announced
                 on_new_task = function(task)

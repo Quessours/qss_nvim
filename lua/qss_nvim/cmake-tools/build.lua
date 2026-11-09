@@ -8,6 +8,7 @@
 local build_first = require('qss_nvim.overseer.build_first')
 local diagnostics = require('qss_nvim.cmake-tools.diagnostics')
 local state = require('qss_nvim.cmake-tools.state')
+local strategy = require('qss_nvim.overseer.strategy')
 
 local M = {}
 
@@ -38,6 +39,7 @@ function M.task(opts)
         name = opts.name,
         cmd = vim.list_extend({ 'cmake' }, M.args()),
         components = diagnostics.components(),
+        strategy = strategy.build,
         failure = opts.failure,
         title = opts.title,
     }

@@ -1,5 +1,6 @@
 local cmake = require('qss_nvim.cmake-tools.state')
 local diagnostics = require('qss_nvim.cmake-tools.diagnostics')
+local strategy = require('qss_nvim.overseer.strategy')
 
 --- "all" is what cmake-tools passes when no target is selected.
 ---@return table
@@ -64,6 +65,7 @@ return {
             cmd = { 'cmake' },
             args = args,
             components = components,
+            strategy = strategy.build,
         }
     end,
 }

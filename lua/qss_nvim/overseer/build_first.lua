@@ -24,6 +24,7 @@ local COMPONENTS = {
 ---@field cwd string?
 ---@field env table<string, string>?
 ---@field components table[]? what parses the output, if anything does
+---@field strategy table? where the output goes, overseer's default if nil
 ---@field failure string what to say when the build fails
 ---@field title string the notification title
 
@@ -40,6 +41,7 @@ function M.run(opts, on_done)
         cmd = opts.cmd,
         cwd = opts.cwd,
         env = opts.env,
+        strategy = opts.strategy,
         components = components,
     })
 
