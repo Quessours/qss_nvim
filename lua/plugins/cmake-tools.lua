@@ -20,8 +20,12 @@ return {
     config = function(_, opts)
         require("cmake-tools").setup(opts)
         require("qss_nvim.cmake-tools.session").track()
+        require("qss_nvim.cmake-tools.run_env").register_dap_listener()
     end,
     opts = {
+        cmake_dap_configuration = {
+            [require("qss_nvim.cmake-tools.run_env").DAP_MARKER] = true,
+        },
         cmake_generate_options = {
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             "-DQT_QML_GENERATE_QMLLS_INI=ON",
@@ -46,7 +50,8 @@ return {
                 new_task_opts = {
                     strategy = require("qss_nvim.overseer.strategy").program,
                 },
-                on_new_task = function()
+                on_new_task = function(task)
+                    require("qss_nvim.cmake-tools.run_env").attach(task)
                     require("overseer").open({ enter = false })
                 end,
             },

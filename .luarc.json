@@ -11,6 +11,7 @@
     "$VIMRUNTIME",
     "/home/maxime/opt/nvim/share/nvim/runtime",
     "${3rd}/luv/library",
-    "$HOME/.local/share/nvim/lazy/snacks.nvim/lua"
+    "$HOME/.local/share/nvim/lazy/snacks.nvim/lua",
+    "$HOME/dev/qssjira.nvim/lua"
   ]
 }
