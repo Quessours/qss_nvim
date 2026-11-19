@@ -40,6 +40,7 @@
   "persistence.nvim": { "branch": "main", "commit": "b20b2a7887bd39c1a356980b45e03250f3dce49c" },
   "plenary.nvim": { "branch": "master", "commit": "74b06c6c75e4eeb3108ec01852001636d85a932b" },
   "preview.nvim": { "branch": "master", "commit": "b41c661115ffece9e4d876cb77c8b24b4f9166dd" },
+  "qssjira.nvim": { "branch": "main", "commit": "029cd154bc5211aef2537f5ed5bd6bc198a58981" },
   "rustaceanvim": { "branch": "master", "commit": "b7ca983c6ec88c94cf25e5deaad96df9a68b9a98" },
   "snacks.nvim": { "branch": "main", "commit": "882c996cf28183f4d63640de0b4c02ec886d01f2" },
   "tokyonight.nvim": { "branch": "main", "commit": "cdc07ac78467a233fd62c493de29a17e0cf2b2b6" },

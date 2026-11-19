@@ -1,12 +1,15 @@
--- qssjira.nvim, the Jira plugin extracted from this configuration into
--- ~/dev/qssjira.nvim. The keys live in qss_nvim/qssjira-nvim/mappings.lua next to
+-- qssjira.nvim, the Jira plugin extracted from this configuration into its own
+-- GitLab repository. The keys live in qss_nvim/qssjira-nvim/mappings.lua next to
 -- every other mapping.
 --
 -- Not lazy: plugin/qssjira.lua must register the jira:// buffer names and the
 -- commit message prefill at startup, and it requires no module until one of
 -- them is used.
 return {
-    dir = '~/dev/qssjira.nvim',
+    url = 'git@gitlab.com:Quessours/qssjira.nvim.git',
+    -- To test local changes, comment out the url line above and uncomment the
+    -- dir line below, so that lazy.nvim loads the clone in ~/dev/qssjira.nvim.
+    -- dir = '~/dev/qssjira.nvim',
     name = 'qssjira.nvim',
     lazy = false,
     dependencies = { 'folke/snacks.nvim' },
