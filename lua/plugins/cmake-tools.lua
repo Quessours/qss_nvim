@@ -17,44 +17,15 @@ return {
         return false
     end,
     event = "VeryLazy",
+    -- qssoverseer-tools.nvim adds the overseer executor and runner, and the
+    -- hooks that connect cmake-tools.nvim to it, to the options below.
     config = function(_, opts)
-        require("cmake-tools").setup(opts)
-        require("qss_nvim.cmake-tools.session").track()
-        require("qss_nvim.cmake-tools.run_env").register_dap_listener()
+        require("qssoverseer_tools.cmake").setup_cmake_tools(opts)
     end,
     opts = {
-        cmake_dap_configuration = {
-            [require("qss_nvim.cmake-tools.run_env").DAP_MARKER] = true,
-        },
         cmake_generate_options = {
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             "-DQT_QML_GENERATE_QMLLS_INI=ON",
-        },
-        cmake_executor = {
-            name = "overseer",
-            opts = {
-                new_task_opts = {
-                    strategy = require("qss_nvim.overseer.strategy").build,
-                },
-                -- Here to ensure that compile output goes into diagnostics,
-                -- and that the end of each task is announced
-                on_new_task = function(task)
-                    require("qss_nvim.cmake-tools.diagnostics").attach(task)
-                    require("qss_nvim.cmake-tools.notify").attach(task)
-                end,
-            },
-        },
-        cmake_runner = {
-            name = "overseer",
-            opts = {
-                new_task_opts = {
-                    strategy = require("qss_nvim.overseer.strategy").program,
-                },
-                on_new_task = function(task)
-                    require("qss_nvim.cmake-tools.run_env").attach(task)
-                    require("overseer").open({ enter = false })
-                end,
-            },
         },
     },
 }

@@ -1,15 +1,15 @@
 -- Debugging a cargo target.
 --
--- What is launched is whatever qss_nvim.cargo.state has selected, built first
+-- What is launched is whatever qssoverseer_tools.cargo.state has selected, built first
 -- in the profile it is selected in. The builtin "cargo build" template takes no
 -- profile, no features and no package, so it would build a debug binary while
 -- the launch went looking for a release one.
 
-local build_first = require('qss_nvim.overseer.build_first')
-local cargo_diagnostics = require('qss_nvim.cargo.diagnostics')
+local build_first = require('qssoverseer.build_first')
+local cargo_diagnostics = require('qssoverseer_tools.cargo.diagnostics')
 local dap = require('dap')
-local metadata = require('qss_nvim.cargo.metadata')
-local state = require('qss_nvim.cargo.state')
+local metadata = require('qssoverseer_tools.cargo.metadata')
+local state = require('qssoverseer_tools.cargo.state')
 
 local TITLE = 'Rust debug'
 
@@ -50,14 +50,14 @@ local function split_arguments(line)
 end
 
 --- Everything a debugger can start: the binaries, then the examples.
----@return qss.cargo.Target[]
+---@return qssoverseer_tools.cargo.Target[]
 local function launchable()
     local targets = metadata.targets('bin')
     vim.list_extend(targets, metadata.targets('example'))
     return targets
 end
 
----@param target qss.cargo.Target
+---@param target qssoverseer_tools.cargo.Target
 ---@return string
 local function label(target)
     if target.kind == 'example' then
@@ -72,7 +72,7 @@ end
 --- The target to launch. The choice is remembered, so it is asked once and then
 --- only when a configuration says to ask again.
 ---@param ask boolean ask even when one is already selected
----@param on_chosen fun(target: qss.cargo.Target?)
+---@param on_chosen fun(target: qssoverseer_tools.cargo.Target?)
 local function choose_target(ask, on_chosen)
     if not ask then
         local selected = state.target()

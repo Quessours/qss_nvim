@@ -9,9 +9,12 @@
   "workspace.checkThirdParty": false,
   "workspace.library": [
     "$VIMRUNTIME",
-    "/home/maxime/opt/nvim/share/nvim/runtime",
     "${3rd}/luv/library",
     "$HOME/.local/share/nvim/lazy/snacks.nvim/lua",
-    "$HOME/dev/qssjira.nvim/lua"
+    "$HOME/.local/share/nvim/lazy/qssjira.nvim/lua",
+    "$HOME/.local/share/nvim/lazy/qssoverseer.nvim/lua",
+    "$HOME/.local/share/nvim/lazy/qssoverseer-tools.nvim/lua",
+    "$HOME/.local/share/nvim/lazy/qssoverseer-kas.nvim/lua",
+    "$HOME/.local/share/nvim/lazy/qsscpp-qt-tooling.nvim/lua"
   ]
 }

@@ -2,7 +2,7 @@ local M = {
     n = {
         -- Also applies the edits still waiting in the CMakeOptions picker.
         ["<leader>mg"] = { function()
-            require("qss_nvim.cmake-tools.options").generate()
+            require("qssoverseer_tools.cmake.options").generate()
         end, "CMake configure" },
         ["<leader>mb"] = { "<cmd> CMakeBuildChecked <CR>", "CMake build (checked)" },
         ["<leader>mB"] = { "<cmd> CMakeBuildChecked clean <CR>", "CMake clean build (keeps cache)" },
@@ -11,27 +11,27 @@ local M = {
         -- A cross build cannot start here, so these two send it to the
         -- device it was configured for. See deploy.lua, wherever_it_runs.
         ["<leader>mr"] = { function()
-            require("qss_nvim.cmake-tools.deploy").run_wherever()
+            require("qssoverseer_tools.cmake.deploy").run_wherever()
         end, "CMake run" },
         ["<leader>md"] = { function()
-            require("qss_nvim.cmake-tools.deploy").debug_wherever()
+            require("qssoverseer_tools.cmake.deploy").debug_wherever()
         end, "CMake debug" },
         ["<leader>mc"] = { "<cmd> CMakeClean <CR>", "CMake clean" },
         -- Picks tests like :CMakeRunTest but runs them in overseer rather than
         -- the terminal the cmake_runner would use. The "cmake test" task on
         -- <leader>mm is the non-interactive one, taking a preset and a filter.
         ["<leader>mT"] = { function()
-            require("qss_nvim.cmake-tools.tests").pick()
+            require("qssoverseer_tools.cmake.tests").pick()
         end, "Run tests" },
         -- Also bound to gd inside the ctest output buffer itself.
         ["<leader>mj"] = { function()
-            require("qss_nvim.cmake-tools.tests").goto_under_cursor()
+            require("qssoverseer_tools.cmake.tests").goto_under_cursor()
         end, "Go to the test named on this line" },
         ["<leader>ma"] = { function()
-            require("qss_nvim.cmake-tools.tests").run_all()
+            require("qssoverseer_tools.cmake.tests").run_all()
         end, "Run all tests" },
         ["<leader>mf"] = { function()
-            require("qss_nvim.cmake-tools.tests").failures()
+            require("qssoverseer_tools.cmake.tests").failures()
         end, "Jump to a failing test" },
         ["<leader>mt"] = { "<cmd> CMakeSelectBuildTarget <CR>", "Select build target" },
         ["<leader>ml"] = { "<cmd> CMakeSelectLaunchTarget <CR>", "Select launch target" },

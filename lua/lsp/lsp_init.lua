@@ -12,8 +12,5 @@ vim.lsp.enable({
     'sqls',
     'plantuml',
     'qmlls',
-    'qtprops',
-    'cppimpl',
-    'bitbakels',
     'yamlls',
 })

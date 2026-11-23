@@ -1,4 +1,4 @@
-local build_first = require("qss_nvim.overseer.build_first")
+local build_first = require("qssoverseer.build_first")
 local dap = require("dap")
 
 dap.adapters.cppdbg = {

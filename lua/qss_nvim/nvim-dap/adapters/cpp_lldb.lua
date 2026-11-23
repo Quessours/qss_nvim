@@ -1,5 +1,5 @@
-local build_first = require('qss_nvim.overseer.build_first')
-local cmake_build = require('qss_nvim.cmake-tools.build')
+local build_first = require('qssoverseer.build_first')
+local cmake_build = require('qssoverseer_tools.cmake.build')
 local dap = require('dap')
 
 dap.adapters.codelldb = {

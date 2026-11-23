@@ -33,8 +33,3 @@ require('lsp.lsp_init')
 
 local qss_utils = require("qss_nvim.utils")
 local qss_dap_utils = require("qss_nvim.nvim-dap.utils")
-require("qss_nvim.cmake-tools")
-require("qss_nvim.qt-class")
-require("qss_nvim.qt-property")
-require("qss_nvim.cpp-impl")
-require("qss_nvim.kas")
