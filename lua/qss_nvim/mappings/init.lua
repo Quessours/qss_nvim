@@ -1,4 +1,7 @@
 vim.g.mapleader = " "
+-- Plugins that set keys for one buffer, for example octo.nvim in a review, put
+-- them under <localleader>.
+vim.g.maplocalleader = ","
 
 
 local mappings = {}
@@ -20,6 +23,7 @@ mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cpp-impl.map
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.persistence-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.flash-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.qssjira-nvim.mappings"))
+mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.octo-nvim.mappings"))
 mappings = vim.tbl_deep_extend("force", mappings, require("qss_nvim.cargo.mappings"))
 
 require('qss_nvim.utils').apply_mappings(mappings)

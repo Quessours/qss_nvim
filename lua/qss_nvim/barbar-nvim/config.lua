@@ -3,7 +3,10 @@ vim.g.barbar_auto_setup = false
 local options = {
     animation = true,
     auto_hide = true,
-    tabpages = false,
+    -- An Octo review opens in its own tab page, and the buffer list of barbar
+    -- is the same in each tab page. The tab page number on the right shows
+    -- which tab page is current.
+    tabpages = true,
     clickable = true,
     exclude_ft = {},
     exclude_name = {},

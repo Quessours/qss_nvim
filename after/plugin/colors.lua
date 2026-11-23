@@ -17,6 +17,10 @@ local accent = {
     mauve      = "#d69bb4",
     grey       = "#8b93a1",
     text       = "#c8cfdd",
+    sage       = "#a4d69a",
+    sand       = "#d6c49a",
+    rose       = "#d69a9a",
+    ink        = "#16161e",
 }
 
 local function set_picker_colors()
@@ -41,6 +45,25 @@ local function set_picker_colors()
     vim.api.nvim_set_hl(0, "SnacksPickerPrompt", { bg = "none", fg = accent.cyan })
 end
 
+-- octo.nvim colors its bubbles (the pills around a count or a state) with a
+-- fixed palette of its own. The octo spec sets the bubble delimiters to one
+-- space, so the delimiter groups take the bubble colors and pad the pill.
+-- octo.nvim defines its groups with default = true, so these win.
+local function set_octo_colors()
+    local bubbles = {
+        Blue   = accent.periwinkle,
+        Purple = accent.mauve,
+        Grey   = accent.grey,
+        Green  = accent.sage,
+        Yellow = accent.sand,
+        Red    = accent.rose,
+    }
+    for name, color in pairs(bubbles) do
+        vim.api.nvim_set_hl(0, "OctoBubble" .. name, { bg = color, fg = accent.ink })
+        vim.api.nvim_set_hl(0, "OctoBubbleDelimiter" .. name, { link = "OctoBubble" .. name })
+    end
+end
+
 function Colorize(theme)
     vim.cmd.colorscheme(theme or color_theme)
 
@@ -60,6 +83,7 @@ function Colorize(theme)
         { bg = "none", fg = "#888888", italic = true })
 
     set_picker_colors()
+    set_octo_colors()
 end
 
 Colorize(color_theme)

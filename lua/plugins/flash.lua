@@ -2,17 +2,20 @@
 -- live in qss_nvim/flash-nvim/mappings.lua next to every other mapping.
 --
 -- VeryLazy rather than a `keys` list, because the f/t enhancement below is set
--- up when the plugin loads. Loading on `s` alone would leave f, t, ; and ,
+-- up when the plugin loads. Loading on `s` alone would leave f, t and ;
 -- unenhanced until the first jump of a session.
 return {
     'folke/flash.nvim',
     event = 'VeryLazy',
     opts = {
         modes = {
-            -- f, t, F and T jump across lines, and ; and , repeat the motion
+            -- f, t, F and T jump across lines, and ; repeats the motion
             -- rather than only the last f/t. Set enabled = false to get the
             -- stock Vim behaviour back.
-            char = { enabled = true },
+            --
+            -- , is the <localleader>, so flash leaves it out of its keys. After
+            -- an f jump, F goes back to the previous match.
+            char = { enabled = true, keys = { 'f', 'F', 't', 'T', ';' } },
             -- Off by default: in a file with dozens of matches for a common
             -- word, a label on every one of them gets in the way, and search
             -- mode also clears hlsearch on jump. <C-s> turns the labels on

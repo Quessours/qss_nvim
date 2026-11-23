@@ -20,6 +20,9 @@ local M = {
     n = {
         ["<leader>af"] = { vim.lsp.buf.format, "Autoformat" },
         ["gb"] = { "<C-O>", "Go back" },
+        -- The float lists every diagnostic of the cursor line, from LSP servers
+        -- and linters alike, and names the source of each one.
+        ["<leader>sd"] = { function() vim.diagnostic.open_float({ source = true }) end, "Show diagnostics" },
         ["<C-d>"] = { scroll_and_center("<C-d>"), "Half page down" },
         ["<C-u>"] = { scroll_and_center("<C-u>"), "Half page up" },
         ["n"] = { "nzzzv" },

@@ -10,6 +10,25 @@ return {
         { "<leader>g",  group = "git" },
         { "<leader>gc", group = "conflict" },
         { "<leader>gh", group = "hunks" },
+        { "<leader>go", group = "octo" },
+        -- The <localleader> keys come from octo.nvim, and exist only in Octo
+        -- buffers. which-key hides a group that has no key in the current
+        -- buffer, so these labels show only there. The octo spec moves the
+        -- review keys to <localleader>r and the reaction and thread keys to
+        -- <localleader>t, see qss_nvim/octo-nvim/key_prefixes.lua.
+        { "<localleader>a",  group = "assignee" },
+        { "<localleader>c",  group = "comment" },
+        { "<localleader>d",  group = "discussion" },
+        { "<localleader>g",  group = "go to" },
+        { "<localleader>i",  group = "issue / state" },
+        { "<localleader>l",  group = "label" },
+        { "<localleader>n",  group = "notification" },
+        { "<localleader>p",  group = "pull request" },
+        { "<localleader>pr", group = "rebase" },
+        { "<localleader>ps", group = "squash" },
+        { "<localleader>r",  group = "review" },
+        { "<localleader>s",  group = "suggestion / stack" },
+        { "<localleader>t",  group = "reaction / thread" },
         { "<leader>j",   group = "jira" },
         { "<leader>ja",  group = "add / assign" },
         { "<leader>jc",  group = "current" },
