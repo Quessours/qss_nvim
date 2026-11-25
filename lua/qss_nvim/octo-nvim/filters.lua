@@ -9,11 +9,36 @@ local M = {}
 ---@field detail string The GitHub search query, or how the filter selects its pull requests.
 ---@field run fun()
 
+-- While the current directory is in a git repository with a GitHub remote,
+-- each filter shows only the pull requests of that repository. Outside such a
+-- repository, each filter searches all of GitHub. The filters read the
+-- current directory each time they run, so the scope follows `:cd`.
+
+---@param query string A GitHub search query.
+---@return string query The query, restricted to the repository of the current directory if there is one.
+function M.scoped(query)
+    local repo = require('octo.utils').get_remote_name()
+    if repo == nil then
+        return query
+    end
+    return query .. ' repo:' .. repo
+end
+
+---@param title string
+---@return string title The title, followed by the repository of the current directory if there is one.
+function M.scoped_title(title)
+    local repo = require('octo.utils').get_remote_name()
+    if repo == nil then
+        return title
+    end
+    return title .. ' (' .. repo .. ')'
+end
+
 ---@param query string A GitHub search query.
 ---@return fun()
 local function octo_search(query)
     return function()
-        vim.cmd('Octo search ' .. query)
+        vim.cmd('Octo search ' .. M.scoped(query))
     end
 end
 
@@ -40,7 +65,7 @@ function M.pick()
         items[#items + 1] = { text = filter.label .. ' ' .. filter.detail, filter = filter }
     end
     Snacks.picker.pick({
-        title = 'Pull request filters',
+        title = M.scoped_title('Pull request filters'),
         items = items,
         layout = { preset = 'select' },
         format = function(item)

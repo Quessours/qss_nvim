@@ -16,8 +16,8 @@ local M = {
         -- GitHub sends as null, `:Octo notification list` fails to open.
         -- Restore the key when the plugin skips such notifications.
         -- ["<leader>gon"] = { "<Cmd>Octo notification list<CR>", "Notifications" },
-        ["<leader>gor"] = { "<Cmd>Octo review start<CR>", "Start a review" },
-        ["<leader>goR"] = { "<Cmd>Octo review resume<CR>", "Resume the review" },
+        -- `:Octo review` resumes the pending review, or starts one if there is none.
+        ["<leader>gor"] = { "<Cmd>Octo review<CR>", "Open the review" },
         ["<leader>gos"] = { "<Cmd>Octo review submit<CR>", "Submit the review" },
         ["<leader>gow"] = { "<Cmd>Octo pr browser<CR>", "Web: open the pull request" },
     }

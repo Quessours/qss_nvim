@@ -32,7 +32,7 @@ vim.lsp.config('clangd', {
     },
 })
 
--- A clangd that is already running keeps the old command. :LspRestart clangd
+-- A clangd that is already running keeps the old command. :lsp restart clangd
 -- picks this up in a session that was started before the file existed.
 
 -- The device the build is deployed to. :CMakeDeploy builds, installs into a

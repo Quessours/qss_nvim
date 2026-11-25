@@ -41,7 +41,7 @@
   "persistence.nvim": { "branch": "main", "commit": "b20b2a7887bd39c1a356980b45e03250f3dce49c" },
   "plenary.nvim": { "branch": "master", "commit": "74b06c6c75e4eeb3108ec01852001636d85a932b" },
   "preview.nvim": { "branch": "master", "commit": "b41c661115ffece9e4d876cb77c8b24b4f9166dd" },
-  "qsscpp-qt-tooling.nvim": { "branch": "main", "commit": "2be095705f0b265031df2c297794926d99a18f33" },
+  "qsscpp-qt-tooling.nvim": { "branch": "main", "commit": "435eb5756e7db491cac0fa0452365602b364b822" },
   "qssjira.nvim": { "branch": "main", "commit": "4471b074d25a1c5e9ced201a47405279fe811855" },
   "qssoverseer-kas.nvim": { "branch": "main", "commit": "08fed1d9f959334031254d116aa99386f107b5ff" },
   "qssoverseer-tools.nvim": { "branch": "main", "commit": "6bab4d457ac5bb64d424253d30c85bd175c9347e" },

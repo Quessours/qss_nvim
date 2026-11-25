@@ -20,6 +20,12 @@ local review_file_keys = {
     select_prev_entry_by_tab = { lhs = '<S-Tab>', desc = 'previous file' },
 }
 
+-- The key that goes from the diff or the file panel of a review to the pull
+-- request buffer, and from the pull request buffer back to the review. The key
+-- is the same in each of these buffers. config() adds the action to the
+-- octo.mappings table.
+local switch_review_tab = { lhs = '<localleader>gt', desc = 'switch between pull request and review' }
+
 return {
     'pwntester/octo.nvim',
     cmd = 'Octo',
@@ -35,14 +41,26 @@ return {
         -- While the pull request branch is checked out, the right side of a
         -- review diff opens the file from disk, so the LSP server attaches.
         use_local_fs = true,
+        -- octo stops each synchronous gh call after this many milliseconds.
+        -- The octo default of 5000 ms is too short for `gh pr checkout` on a
+        -- large repository, because the git fetch takes longer.
+        timeout = 60000,
         -- The default delimiters are the Powerline rounded caps U+E0B6 and
         -- U+E0B4, which the terminal font draws badly. With one space, the
         -- bubble is a padded rectangle. after/plugin/colors.lua sets the colors.
         left_bubble_delimiter = ' ',
         right_bubble_delimiter = ' ',
+        -- `:Octo review` with no subcommand resumes the pending review or
+        -- starts one. The `:Octo` action picker lists only named subcommands,
+        -- so `review open` gives the same action a line in the picker.
+        commands = {
+            review = {
+                open = function() require('octo.reviews').start_or_resume_review() end,
+            },
+        },
         mappings = {
-            review_diff = review_file_keys,
-            file_panel = review_file_keys,
+            review_diff = vim.tbl_extend('force', review_file_keys, { switch_review_tab = switch_review_tab }),
+            file_panel = vim.tbl_extend('force', review_file_keys, { switch_review_tab = switch_review_tab }),
             submit_win = review_file_keys,
             -- In a pull request buffer, the review key (start or resume a
             -- review) does the work of review_start too. Without review_start,
@@ -50,6 +68,9 @@ return {
             -- has it.
             pull_request = {
                 review_start = { lhs = '' },
+                -- config() adds this action to the octo.mappings table.
+                goto_thread_in_diff = { lhs = '<localleader>gd', desc = 'go to thread in diff' },
+                switch_review_tab = switch_review_tab,
             },
         },
     },
@@ -59,6 +80,8 @@ return {
         local actions = require('octo.mappings')
         actions.select_next_entry_by_tab = actions.select_next_entry
         actions.select_prev_entry_by_tab = actions.select_prev_entry
+        actions.goto_thread_in_diff = require('qss_nvim.octo-nvim.thread_jump').jump
+        actions.switch_review_tab = require('qss_nvim.octo-nvim.review_tab_switch').switch
         -- Octo buffers hold GitHub markdown, so the markdown parser
         -- highlights them.
         vim.treesitter.language.register('markdown', 'octo')
@@ -67,5 +90,7 @@ return {
         require('qss_nvim.octo-nvim.review_windows').setup()
         require('qss_nvim.octo-nvim.review_buffers').setup()
         require('qss_nvim.octo-nvim.review_widths').setup()
+        require('qss_nvim.octo-nvim.review_actions').setup()
+        require('qss_nvim.octo-nvim.review_thread_folds').setup()
     end,
 }

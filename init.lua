@@ -2,7 +2,8 @@ vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 vim.o.exrc = true
 
-vim.diagnostic.config({ virtual_text = true, severity_sort = true })
+-- The diagnostic float of `<leader>sd` gets a border, so the float stands out from the code behind it.
+vim.diagnostic.config({ virtual_text = true, severity_sort = true, float = { border = "rounded" } })
 
 local options = require("qss_nvim.config.options")
 for k, v in pairs(options) do

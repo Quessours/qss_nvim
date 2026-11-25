@@ -2,6 +2,8 @@
 -- current gh user and that have fewer than APPROVALS_NEEDED approvals. GitHub
 -- search cannot count approvals, so the module asks the GraphQL API for the
 -- latest review of each reviewer and counts the approvals itself.
+local filters = require('qss_nvim.octo-nvim.filters')
+
 local M = {}
 
 local APPROVALS_NEEDED = 2
@@ -74,7 +76,7 @@ local function show(items)
         return
     end
     Snacks.picker.pick({
-        title = 'PRs that need my review',
+        title = filters.scoped_title('PRs that need my review'),
         items = items,
         preview = 'preview',
         format = function(item)
@@ -93,7 +95,7 @@ local function show(items)
 end
 
 function M.open()
-    local cmd = { 'gh', 'api', 'graphql', '-f', 'q=' .. SEARCH, '-f', 'query=' .. QUERY }
+    local cmd = { 'gh', 'api', 'graphql', '-f', 'q=' .. filters.scoped(SEARCH), '-f', 'query=' .. QUERY }
     vim.system(cmd, { text = true }, vim.schedule_wrap(function(result)
         if result.code ~= 0 then
             vim.notify('gh api graphql failed: ' .. result.stderr, vim.log.levels.ERROR)
