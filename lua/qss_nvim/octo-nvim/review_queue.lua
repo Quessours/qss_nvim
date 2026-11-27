@@ -1,7 +1,8 @@
 -- A snacks picker of the open pull requests that wait for a review of the
--- current gh user and that have fewer than APPROVALS_NEEDED approvals. GitHub
--- search cannot count approvals, so the module asks the GraphQL API for the
--- latest review of each reviewer and counts the approvals itself.
+-- current gh user, that have fewer than APPROVALS_NEEDED approvals, and that
+-- the current gh user did not approve. GitHub search cannot count approvals,
+-- so the module asks the GraphQL API for the latest review of each reviewer
+-- and counts the approvals itself.
 local filters = require('qss_nvim.octo-nvim.filters')
 
 local M = {}
@@ -15,6 +16,7 @@ local SEARCH = 'is:pr is:open review-requested:@me archived:false'
 -- count as an approval.
 local QUERY = [[
 query($q: String!) {
+  viewer { login }
   search(query: $q, type: ISSUE, first: 100) {
     nodes {
       ... on PullRequest {
@@ -72,7 +74,7 @@ end
 local function show(items)
     if #items == 0 then
         vim.notify('No pull request waits for your review with fewer than '
-            .. APPROVALS_NEEDED .. ' approvals', vim.log.levels.INFO)
+            .. APPROVALS_NEEDED .. ' approvals and without your approval', vim.log.levels.INFO)
         return
     end
     Snacks.picker.pick({
@@ -102,10 +104,13 @@ function M.open()
             return
         end
         local response = vim.json.decode(result.stdout)
+        local me = response.data.viewer.login
         local items = {}
         for _, pr in ipairs(response.data.search.nodes) do
             local approvers = approvers_of(pr)
-            if #approvers < APPROVALS_NEEDED then
+            local needs_more_approvals = #approvers < APPROVALS_NEEDED
+            local approved_by_me = vim.list_contains(approvers, me)
+            if needs_more_approvals and not approved_by_me then
                 items[#items + 1] = to_item(pr, approvers)
             end
         end

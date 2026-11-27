@@ -18,11 +18,15 @@ local M = {
         ["<leader>fw"] = { function() Snacks.picker.lsp_workspace_symbols() end, "Find symbol in workspace" },
         ["<leader>fo"] = { function() Snacks.picker.lsp_symbols() end, "Find symbol in document" },
 
-        ["K"] = { vim.lsp.buf.hover, "Hover" },
+        -- noice replaces vim.lsp.buf.hover and vim.lsp.buf.signature_help on
+        -- VeryLazy, after this table is built. The lookup must happen at key
+        -- press, or K and gs keep the built-in float, which has no border
+        -- while 'winborder' is empty.
+        ["K"] = { function() vim.lsp.buf.hover() end, "Hover" },
         ["R"] = { vim.lsp.buf.rename, "Rename symbol" },
         ["<F2>"] = { vim.lsp.buf.rename, "Rename symbol" },
         ["<leader>ca"] = { vim.lsp.buf.code_action, "Code action" },
-        ["gs"] = { vim.lsp.buf.signature_help, "Signature help" },
+        ["gs"] = { function() vim.lsp.buf.signature_help() end, "Signature help" },
         ["th"] = { vim.lsp.buf.typehierarchy, "Type hierarchy" },
         ["<F3>"] = { function() vim.lsp.buf.format({ async = true }) end, "Format buffer" },
     },

@@ -54,7 +54,7 @@ M.list = {
     {
         key = 'q',
         label = 'Pull requests that need my review',
-        detail = WAIT_FOR_ME .. ', fewer than 2 approvals',
+        detail = WAIT_FOR_ME .. ', fewer than 2 approvals, not approved by me',
         run = function() require('qss_nvim.octo-nvim.review_queue').open() end,
     },
 }

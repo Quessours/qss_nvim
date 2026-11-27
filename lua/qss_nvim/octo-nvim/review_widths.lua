@@ -8,6 +8,11 @@
 -- octo.nvim has no option for the widths of the diff windows, so setup()
 -- adds a BufWinEnter autocommand. Octo puts each file and each comment thread
 -- in a diff window with nvim_win_set_buf, which triggers BufWinEnter.
+--
+-- Octo shows and hides the comment thread of the cursor line from a
+-- CursorMoved autocommand that is not nested, so that nvim_win_set_buf
+-- triggers no BufWinEnter. setup() also wraps show_review_threads of
+-- octo.reviews.thread-panel, and the wrapper resizes the windows after it.
 local M = {}
 
 local ADDED_FILE_LEFT_WIDTH = 10
@@ -33,21 +38,35 @@ local function resize(layout)
     vim.api.nvim_win_set_width(left, left_width)
 end
 
+-- Octo sets the buffer of a diff window before it finishes the review state,
+-- so the resize waits for the end of the current event.
+local function schedule_resize()
+    vim.schedule(function()
+        local layout = require('octo.reviews').get_current_layout()
+        if layout then
+            resize(layout)
+        end
+    end)
+end
+
 function M.setup()
     vim.api.nvim_create_autocmd('BufWinEnter', {
         group = vim.api.nvim_create_augroup('qss_octo_review_widths', {}),
         desc = 'Shrink the left Octo diff window for an added file',
-        callback = function()
-            -- Octo sets the buffer of a diff window before it finishes the
-            -- review state, so the resize waits for the end of the event.
-            vim.schedule(function()
-                local layout = require('octo.reviews').get_current_layout()
-                if layout then
-                    resize(layout)
-                end
-            end)
-        end,
+        callback = schedule_resize,
     })
+
+    local thread_panel = require('octo.reviews.thread-panel')
+    local original = thread_panel.show_review_threads
+    if type(original) ~= 'function' then
+        vim.notify('octo.nvim has no thread-panel show_review_threads any more:'
+            .. ' the comment thread of an added file stays narrow', vim.log.levels.WARN)
+        return
+    end
+    thread_panel.show_review_threads = function(jump_to_buffer)
+        original(jump_to_buffer)
+        schedule_resize()
+    end
 end
 
 return M
