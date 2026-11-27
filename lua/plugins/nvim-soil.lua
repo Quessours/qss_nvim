@@ -1,8 +1,21 @@
+-- The upstream javiorfo GitHub account no longer exists, so nvim-soil and
+-- nvim-nyctophilia come from copies on GitLab. Each copy holds the files of the
+-- last upstream commit that this configuration used, without older history.
 return {
-    'javiorfo/nvim-soil',
+    url = 'git@gitlab.com:Quessours/nvim-soil.git',
+    -- To test local changes, comment out the url line above and uncomment the
+    -- dir line below, so that lazy.nvim loads the clone in ~/dev/nvim-soil.
+    -- dir = '~/dev/nvim-soil',
+    name = 'nvim-soil',
 
     -- Optional for puml syntax highlighting:
-    dependencies = { 'javiorfo/nvim-nyctophilia' },
+    dependencies = {
+        {
+            url = 'git@gitlab.com:Quessours/nvim-nyctophilia.git',
+            -- dir = '~/dev/nvim-nyctophilia',
+            name = 'nvim-nyctophilia',
+        },
+    },
 
     lazy = true,
     ft = "plantuml",

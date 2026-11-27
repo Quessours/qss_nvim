@@ -1,5 +1,11 @@
+-- preview.nvim comes from a fork on GitLab with the full upstream history. The
+-- clone in ~/dev/preview.nvim has the itaranto repository as its upstream remote.
 return {
-    'https://gitlab.com/itaranto/preview.nvim',
+    url = 'git@gitlab.com:Quessours/preview.nvim.git',
+    -- To test local changes, comment out the url line above and uncomment the
+    -- dir line below, so that lazy.nvim loads the clone in ~/dev/preview.nvim.
+    -- dir = '~/dev/preview.nvim',
+    name = 'preview.nvim',
     version = '*',
     opts = {
         -- Your options.
